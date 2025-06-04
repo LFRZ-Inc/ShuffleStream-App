@@ -45,6 +45,8 @@ jobs:
           NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
           NEXT_PUBLIC_STREAMING_API_KEY: ${{ secrets.NEXT_PUBLIC_STREAMING_API_KEY }}
           NODE_ENV: production
+          BASE_PATH: /ShuffleStream
+          ASSET_PREFIX: /ShuffleStream/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

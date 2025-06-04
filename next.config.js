@@ -13,8 +13,8 @@ const nextConfig = {
   basePath: process.env.NODE_ENV === 'production' ? '/ShuffleStream' : '',
   assetPrefix: process.env.NODE_ENV === 'production' ? '/ShuffleStream/' : '',
   trailingSlash: true,
-  distDir: 'out',
   reactStrictMode: true,
+  distDir: 'out',
 }
 
 module.exports = nextConfig 
