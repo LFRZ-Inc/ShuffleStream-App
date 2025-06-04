@@ -31,7 +31,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install -g npm@latest
           npm install
 
       - name: Setup Pages
@@ -45,8 +44,6 @@ jobs:
           NODE_ENV: production
           NEXT_PUBLIC_TMDB_API_KEY: ${{ secrets.NEXT_PUBLIC_TMDB_API_KEY }}
           NEXT_PUBLIC_STREAMING_API_KEY: ${{ secrets.NEXT_PUBLIC_STREAMING_API_KEY }}
-          BASE_PATH: /ShuffleStream
-          ASSET_PREFIX: /ShuffleStream/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
