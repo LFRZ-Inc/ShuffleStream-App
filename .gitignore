@@ -9,6 +9,7 @@
 # Next.js
 /.next/
 /out/
+/dist/
 
 # Production
 /build
@@ -38,4 +39,13 @@ next-env.d.ts
 .idea/
 
 # OS
-Thumbs.db 
+Thumbs.db
+.DS_Store
+
+# Cache
+.cache/
+.npm/
+
+# Build output
+.next/
+out/ 

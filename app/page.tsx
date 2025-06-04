@@ -17,7 +17,6 @@ import {
 import { redirect } from 'next/navigation'
 
 export default function HomePage() {
-  // Temporary: Redirect to dashboard for testing
   redirect('/dashboard')
 
   const [isVisible, setIsVisible] = useState(false)
