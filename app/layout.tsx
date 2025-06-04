@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Poppins } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
+import { iconConfig } from './icon'
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -29,6 +30,7 @@ export const metadata: Metadata = {
     telephone: false,
   },
   metadataBase: new URL('https://shufflestream.app'),
+  icons: iconConfig,
   openGraph: {
     title: 'ShuffleStream - Your Smarter Way to Stream',
     description: 'Connect all your streaming platforms and discover content with advanced shuffle features.',
@@ -74,21 +76,20 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
-      <body className={`${inter.className} antialiased`}>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-blue-900 dark:to-purple-900">
-          {children}
-        </div>
+    <html lang="en" className={`${inter.variable} ${poppins.variable} dark`}>
+      <body className={`${inter.className} antialiased bg-gray-900 text-white`}>
+        {children}
         <Toaster
           position="top-right"
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#363636',
+              background: '#1F2937',
               color: '#fff',
               borderRadius: '10px',
               padding: '16px',
               fontSize: '14px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
             },
             success: {
               iconTheme: {

@@ -14,11 +14,8 @@ import {
   CheckCircle,
   Sparkles
 } from 'lucide-react'
-import { redirect } from 'next/navigation'
 
 export default function HomePage() {
-  redirect('/dashboard')
-
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
@@ -60,7 +57,7 @@ export default function HomePage() {
   ]
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-600/20 via-secondary-500/20 to-accent-500/20" />
@@ -85,7 +82,7 @@ export default function HomePage() {
               <span className="gradient-text">ShuffleStream</span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
               Your smarter way to stream. Connect all your platforms, discover content with advanced shuffle features, and never wonder what to watch again.
             </p>
 
