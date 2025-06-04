@@ -24,6 +24,11 @@ import {
   Flag,
   Users
 } from 'lucide-react'
+import { ShuffleControls } from '@/components/ShuffleControls'
+import { ContentDisplay } from '@/components/ContentDisplay'
+import { PlatformStatus } from '@/components/PlatformStatus'
+import { BingerChallenge } from '@/components/BingerChallenge'
+import { CulturalThemes } from '@/components/CulturalThemes'
 
 export default function DashboardPage() {
   const [selectedMode, setSelectedMode] = useState<string | null>(null)
@@ -93,6 +98,9 @@ export default function DashboardPage() {
   const toggleCulturalTheme = (themeId: string) => {
     console.log(`Toggling cultural theme: ${themeId}`)
   }
+
+  // In a real app, this would come from auth
+  const userId = 'demo-user'
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -192,106 +200,39 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content */}
-      <main className="px-6 pb-24">
-        {/* Shuffle Modes */}
-        <div className="space-y-3 mb-8">
-          {shuffleModes.map((mode, index) => (
-            <motion.button
-              key={mode.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 * index }}
-              onClick={() => handleStartShuffle(mode.id)}
-              className="w-full bg-gray-800 hover:bg-gray-700 rounded-2xl p-5 transition-all duration-200 hover:scale-[1.02] group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="bg-white/10 p-3 rounded-xl group-hover:bg-white/20 transition-colors">
-                  <mode.icon className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1 text-left">
-                  <h3 className="text-lg font-semibold">{mode.name}</h3>
-                  <p className="text-sm text-gray-400">{mode.description}</p>
-                </div>
-                <div className="flex items-center gap-2 text-gray-400">
-                  <ExternalLink className="w-4 h-4" />
-                  <Zap className="w-4 h-4" />
-                </div>
-              </div>
-            </motion.button>
-          ))}
+      <main className="container mx-auto py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content Area */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Content Display */}
+            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
+              <ContentDisplay />
+            </section>
+
+            {/* Shuffle Controls */}
+            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
+              <ShuffleControls />
+            </section>
+
+            {/* Platform Status */}
+            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
+              <PlatformStatus />
+            </section>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-8">
+            {/* Binger's Challenge */}
+            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
+              <BingerChallenge userId={userId} />
+            </section>
+
+            {/* Cultural Themes */}
+            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
+              <CulturalThemes userId={userId} />
+            </section>
+          </div>
         </div>
-
-        {/* Connected Platforms */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.6 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Connected Platforms</h2>
-            <Link href="/settings" className="text-sm text-blue-400 hover:text-blue-300">
-              Manage
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {connectedPlatforms.map((platform, index) => (
-              <div
-                key={platform.name}
-                className={`bg-gray-800 rounded-xl p-4 h-16 flex items-center justify-between transition-colors ${
-                  platform.connected ? 'border border-green-500/30' : 'border border-gray-600'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-4 ${platform.color} rounded flex items-center justify-center`}>
-                    <span className="text-white font-bold text-xs">{platform.name.charAt(0)}</span>
-                  </div>
-                  <span className="text-sm font-medium">{platform.name}</span>
-                </div>
-                <div className={`w-2 h-2 rounded-full ${platform.connected ? 'bg-green-400' : 'bg-gray-500'}`} />
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-3 text-center">
-            ShuffleStream launches content in your existing apps
-          </p>
-        </motion.div>
-
-        {/* Quick Launch */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.7 }}
-        >
-          <h2 className="text-xl font-bold mb-4">Continue Watching</h2>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {[
-              { title: 'Stranger Things', platform: 'Netflix', progress: 65, color: 'bg-red-600' },
-              { title: 'The Mandalorian', platform: 'Disney+', progress: 23, color: 'bg-blue-600' },
-              { title: 'The Boys', platform: 'Prime Video', progress: 89, color: 'bg-blue-500' },
-              { title: 'Only Murders', platform: 'Hulu', progress: 45, color: 'bg-green-500' }
-            ].map((content, index) => (
-              <button
-                key={content.title}
-                className="flex-shrink-0 w-32 h-44 bg-gray-800 rounded-xl overflow-hidden hover:scale-105 transition-transform relative group"
-              >
-                <div className={`w-full h-32 ${content.color} flex items-center justify-center relative`}>
-                  <ExternalLink className="w-6 h-6 text-white/80 group-hover:text-white transition-colors" />
-                </div>
-                <div className="p-2">
-                  <p className="text-xs font-medium truncate">{content.title}</p>
-                  <p className="text-xs text-gray-400">{content.platform}</p>
-                  <div className="w-full bg-gray-700 rounded-full h-1 mt-1">
-                    <div 
-                      className="bg-white h-1 rounded-full transition-all duration-300"
-                      style={{ width: `${content.progress}%` }}
-                    />
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </motion.div>
       </main>
 
       {/* Bottom Navigation */}

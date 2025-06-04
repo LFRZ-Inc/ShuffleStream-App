@@ -1,4 +1,5 @@
 import { Title, User, UserPreferences, ShuffleModeType } from '@/types'
+import { Content, ShufflePreferences, Platform, ContentType } from '@/types'
 
 export interface ShuffleOptions {
   platforms?: string[]
@@ -189,4 +190,136 @@ export function getShuffleRecommendation(
   }
 
   return { title, reason, confidence }
+}
+
+// Filter content based on preferences
+function filterByPreferences(content: Content[], preferences: ShufflePreferences): Content[] {
+  return content.filter(item => {
+    // Check content type
+    if (!preferences.contentTypes.includes(item.type)) return false
+    
+    // Check platform
+    if (preferences.excludedPlatforms.includes(item.platformId)) return false
+    
+    // Check genre overlap
+    if (preferences.genres.length > 0 && 
+        !item.genres.some(g => preferences.genres.includes(g.id))) return false
+    
+    // Check rating (assuming rating is 1-10)
+    const numericRating = parseFloat(item.rating)
+    if (!isNaN(numericRating) && numericRating < preferences.minRating) return false
+    
+    // Check duration
+    if (preferences.maxDuration > 0 && item.duration > preferences.maxDuration) return false
+    
+    return true
+  })
+}
+
+// Get random episode from a series
+function getRandomEpisode(content: Content[], seriesId: string): Content | null {
+  const episodes = content.filter(
+    item => item.type === 'episode' && item.seriesId === seriesId
+  )
+  if (episodes.length === 0) return null
+  return episodes[Math.floor(Math.random() * episodes.length)]
+}
+
+// Full Shuffle - Anything across all platforms
+export function fullShuffle(content: Content[], count: number = 10): Content[] {
+  return shuffleArray(content).slice(0, count)
+}
+
+// Preference Shuffle - Based on user preferences
+export function preferenceShuffle(
+  content: Content[],
+  preferences: ShufflePreferences,
+  count: number = 10
+): Content[] {
+  const filtered = filterByPreferences(content, preferences)
+  return shuffleArray(filtered).slice(0, count)
+}
+
+// Cable Mode - Endless autoplay with smart transitions
+export function cableModeShuffle(
+  content: Content[],
+  preferences: ShufflePreferences,
+  currentGenre?: string
+): Content[] {
+  let filtered = filterByPreferences(content, preferences)
+  
+  // If we have a current genre, prioritize similar content first
+  if (currentGenre) {
+    const similar = filtered.filter(item => 
+      item.genres.some(g => g.id === currentGenre)
+    )
+    const others = filtered.filter(item => 
+      !item.genres.some(g => g.id === currentGenre)
+    )
+    filtered = [...shuffleArray(similar), ...shuffleArray(others)]
+  } else {
+    filtered = shuffleArray(filtered)
+  }
+  
+  return filtered
+}
+
+// List Shuffle - From user's curated list
+export function listShuffle(content: Content[], listIds: string[], count: number = 10): Content[] {
+  const listContent = content.filter(item => listIds.includes(item.id))
+  return shuffleArray(listContent).slice(0, count)
+}
+
+// Show Shuffle - Random episode from selected show
+export function showShuffle(content: Content[], seriesId: string, count: number = 10): Content[] {
+  const episodes: Content[] = []
+  
+  while (episodes.length < count) {
+    const episode = getRandomEpisode(content, seriesId)
+    if (!episode) break
+    if (!episodes.some(e => e.id === episode.id)) {
+      episodes.push(episode)
+    }
+  }
+  
+  return episodes
+}
+
+// Main shuffle function that handles all modes
+export function shuffle(
+  mode: ShuffleModeType,
+  content: Content[],
+  options: {
+    preferences?: ShufflePreferences,
+    listIds?: string[],
+    seriesId?: string,
+    currentGenre?: string,
+    count?: number
+  } = {}
+): Content[] {
+  const { preferences, listIds, seriesId, currentGenre, count = 10 } = options
+  
+  switch (mode) {
+    case 'full':
+      return fullShuffle(content, count)
+      
+    case 'preference':
+      if (!preferences) throw new Error('Preferences required for preference shuffle')
+      return preferenceShuffle(content, preferences, count)
+      
+    case 'cable':
+      if (!preferences) throw new Error('Preferences required for cable mode')
+      return cableModeShuffle(content, preferences, currentGenre)
+      
+    case 'list':
+      if (!listIds) throw new Error('List IDs required for list shuffle')
+      return listShuffle(content, listIds, count)
+      
+    case 'show':
+      if (!seriesId) throw new Error('Series ID required for show shuffle')
+      return showShuffle(content, seriesId, count)
+      
+    default:
+      throw new Error(`Invalid shuffle mode: ${mode}`)
+  }
 } 
