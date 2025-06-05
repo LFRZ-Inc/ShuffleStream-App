@@ -35,13 +35,9 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
-import { ShuffleControls } from '@/components/ShuffleControls'
-import { ContentDisplay } from '@/components/ContentDisplay'
-import { PlatformStatus } from '@/components/PlatformStatus'
-import { BingerChallenge } from '@/components/BingerChallenge'
-import { CulturalThemes } from '@/components/CulturalThemes'
 import { PlatformSelectionModal } from '@/app/components/PlatformSelectionModal'
 import { Tooltip } from '@/app/components/Tooltip'
+import SmartLaunchButton from '@/app/components/SmartLaunchButton'
 
 interface ContentItem {
   id: number
@@ -444,18 +440,6 @@ export default function DashboardPage() {
     }
   }
 
-  const handleWatchNow = (content: ContentItem) => {
-    // Log to watched titles (mock)
-    console.log('Logging watch:', content.title)
-    
-    // Open deep link
-    if (content.deepLink) {
-      window.open(content.deepLink, '_blank')
-    } else {
-      window.open(content.watchUrl, '_blank')
-    }
-  }
-
   const handleAddToList = (content: ContentItem) => {
     // Mock add to list functionality
     console.log('Adding to list:', content.title)
@@ -641,15 +625,18 @@ export default function DashboardPage() {
                 </div>
                 
                 <div className="flex space-x-4">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleWatchNow(currentRecommendation)}
-                    className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 transition-colors"
+                  <SmartLaunchButton
+                    platform={currentRecommendation.platform}
+                    contentId={currentRecommendation.id.toString()}
+                    contentType={currentRecommendation.type}
+                    title={currentRecommendation.title}
+                    variant="primary"
+                    size="lg"
+                    className="bg-purple-600 hover:bg-purple-700"
                   >
-                    <Play className="w-5 h-5" />
-                    <span>Watch Now</span>
-                  </motion.button>
+                    <Play className="w-5 h-5 mr-2" />
+                    Watch Now
+                  </SmartLaunchButton>
                   
                   <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -661,15 +648,19 @@ export default function DashboardPage() {
                     <span>Add to List</span>
                   </motion.button>
                   
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => window.open(currentRecommendation.deepLink, '_blank')}
-                    className="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 transition-colors"
+                  <SmartLaunchButton
+                    platform={currentRecommendation.platform}
+                    contentId={currentRecommendation.id.toString()}
+                    contentType={currentRecommendation.type}
+                    title={currentRecommendation.title}
+                    variant="secondary"
+                    size="lg"
+                    showExpectedBehavior={false}
+                    className="bg-gray-700 hover:bg-gray-600"
                   >
-                    <ExternalLink className="w-5 h-5" />
-                    <span>Open in App</span>
-                  </motion.button>
+                    <ExternalLink className="w-5 h-5 mr-2" />
+                    Open in App
+                  </SmartLaunchButton>
                 </div>
               </div>
             </div>

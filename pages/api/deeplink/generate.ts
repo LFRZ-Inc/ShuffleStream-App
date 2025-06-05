@@ -1,21 +1,25 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { generateDeepLink, DeepLinkOptions, DeepLinkResult, getExpectedBehaviorMessage } from '../../../lib/utils/deepLinkGenerator'
 
 interface DeepLinkRequest {
-  contentId: string
   platform: string
+  contentId: string
   contentType: 'movie' | 'tv'
-  season?: number
-  episode?: number
+  title: string
+  deviceInfo?: {
+    type: 'mobile' | 'tablet' | 'desktop' | 'smarttv'
+    os: 'ios' | 'android' | 'windows' | 'macos' | 'linux' | 'unknown'
+    browser: 'safari' | 'chrome' | 'firefox' | 'edge' | 'samsung' | 'unknown'
+    isNativeAppCapable: boolean
+    supportsDeepLinks: boolean
+  }
 }
 
 interface DeepLinkResponse {
   success: boolean
-  data?: {
-    webUrl: string
-    appUrl: string
-    fallbackUrl: string
-    platform: string
-    contentTitle: string
+  data?: DeepLinkResult & {
+    expectedBehavior: string
+    deviceOptimized: boolean
   }
   error?: string
 }
@@ -102,104 +106,33 @@ export default async function handler(
   }
 
   try {
-    const { contentId, platform, contentType, season, episode }: DeepLinkRequest = req.body
+    const { platform, contentId, contentType, title, deviceInfo }: DeepLinkRequest = req.body
 
-    if (!contentId || !platform) {
+    if (!platform || !contentId || !contentType || !title) {
       return res.status(400).json({
         success: false,
-        error: 'Content ID and platform are required'
+        error: 'Missing required fields: platform, contentId, contentType, title'
       })
     }
 
-    const platformConfig = PLATFORM_CONFIGS[platform as keyof typeof PLATFORM_CONFIGS]
-    if (!platformConfig) {
-      return res.status(400).json({
-        success: false,
-        error: 'Unsupported platform'
-      })
+    const options: DeepLinkOptions = {
+      platform: platform.toLowerCase(),
+      contentId,
+      contentType,
+      title,
+      deviceInfo
     }
 
-    // Get content info from mock database
-    const content = CONTENT_DATABASE[contentId as keyof typeof CONTENT_DATABASE]
-    if (!content) {
-      return res.status(404).json({
-        success: false,
-        error: 'Content not found'
-      })
-    }
-
-    // Generate platform-specific URLs
-    let webUrl: string
-    let appUrl: string
-
-    switch (platform) {
-      case 'netflix':
-        const netflixId = content.netflixId || contentId
-        webUrl = `${platformConfig.webBase}${netflixId}`
-        appUrl = `${platformConfig.appScheme}${netflixId}`
-        if (season && episode) {
-          webUrl += `?trackId=14170286&tctx=0%2C${season}%2C${episode}`
-          appUrl += `?season=${season}&episode=${episode}`
-        }
-        break
-
-      case 'disney':
-        const disneyId = content.disneyId || contentId
-        webUrl = `${platformConfig.webBase}${disneyId}`
-        appUrl = `${platformConfig.appScheme}${contentType}/${disneyId}`
-        break
-
-      case 'hulu':
-        const huluId = content.huluId || contentId
-        webUrl = contentType === 'movie' 
-          ? `https://www.hulu.com/movie/${huluId}`
-          : `https://www.hulu.com/series/${huluId}`
-        appUrl = `${platformConfig.appScheme}${huluId}`
-        if (season && episode) {
-          appUrl += `?season=${season}&episode=${episode}`
-        }
-        break
-
-      case 'prime':
-        webUrl = `${platformConfig.webBase}${contentId}`
-        appUrl = `${platformConfig.appScheme}${contentId}`
-        break
-
-      case 'hbo':
-        const hboId = content.hboId || contentId
-        webUrl = `${platformConfig.webBase}${hboId}`
-        appUrl = `${platformConfig.appScheme}${hboId}`
-        break
-
-      case 'apple':
-        webUrl = `${platformConfig.webBase}${contentId}`
-        appUrl = `${platformConfig.appScheme}${contentId}`
-        break
-
-      case 'paramount':
-        const paramountId = content.paramountId || contentId
-        webUrl = `${platformConfig.webBase}${paramountId}`
-        appUrl = `${platformConfig.appScheme}${contentType}/${paramountId}`
-        break
-
-      case 'peacock':
-        webUrl = `${platformConfig.webBase}${contentId}`
-        appUrl = `${platformConfig.appScheme}${contentId}`
-        break
-
-      default:
-        webUrl = platformConfig.fallback
-        appUrl = platformConfig.fallback
-    }
+    const deepLinkResult = generateDeepLink(options)
+    const expectedBehavior = getExpectedBehaviorMessage(platform, contentType)
+    const deviceOptimized = deviceInfo ? deviceInfo.isNativeAppCapable : false
 
     return res.status(200).json({
       success: true,
       data: {
-        webUrl,
-        appUrl,
-        fallbackUrl: platformConfig.fallback,
-        platform: platformConfig.name,
-        contentTitle: content.title
+        ...deepLinkResult,
+        expectedBehavior,
+        deviceOptimized
       }
     })
 
