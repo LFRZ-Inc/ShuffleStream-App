@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { 
@@ -23,7 +23,9 @@ import {
   Calendar,
   Flag,
   Users,
-  Shield
+  Shield,
+  Play,
+  Loader2
 } from 'lucide-react'
 import { ShuffleControls } from '@/components/ShuffleControls'
 import { ContentDisplay } from '@/components/ContentDisplay'
@@ -31,9 +33,34 @@ import { PlatformStatus } from '@/components/PlatformStatus'
 import { BingerChallenge } from '@/components/BingerChallenge'
 import { CulturalThemes } from '@/components/CulturalThemes'
 
+interface ContentItem {
+  id: number
+  title: string
+  type: 'movie' | 'tv'
+  platform: string
+  genre: string[]
+  rating: number
+  year: number
+  duration: string
+  description: string
+  poster: string
+  deepLink: string
+  watchUrl: string
+}
+
+interface ShuffleResult {
+  recommendation: ContentItem
+  alternatives: ContentItem[]
+  shuffleId: string
+  mode: string
+}
+
 export default function DashboardPage() {
   const [selectedMode, setSelectedMode] = useState<string | null>(null)
   const [showCulturalSettings, setShowCulturalSettings] = useState(false)
+  const [currentRecommendation, setCurrentRecommendation] = useState<ShuffleResult | null>(null)
+  const [isShuffling, setIsShuffling] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const shuffleModes = [
     {
@@ -49,9 +76,9 @@ export default function DashboardPage() {
       icon: Target,
     },
     {
-      id: 'cable',
-      name: 'Cable Mode',
-      description: 'Autoplay, endless channel-style experience',
+      id: 'platform',
+      name: 'Platform Shuffle',
+      description: 'Random content from specific platforms',
       icon: Tv,
     },
     {
@@ -69,10 +96,10 @@ export default function DashboardPage() {
   ]
 
   const connectedPlatforms = [
-    { name: 'Netflix', connected: true, color: 'bg-red-600' },
-    { name: 'Disney+', connected: true, color: 'bg-blue-600' },
-    { name: 'Prime Video', connected: true, color: 'bg-blue-500' },
-    { name: 'Hulu', connected: false, color: 'bg-green-500' }
+    { name: 'Netflix', connected: true, color: 'bg-red-600', id: 'netflix' },
+    { name: 'Disney+', connected: true, color: 'bg-blue-600', id: 'disney' },
+    { name: 'Prime Video', connected: true, color: 'bg-blue-500', id: 'prime' },
+    { name: 'Hulu', connected: false, color: 'bg-green-500', id: 'hulu' }
   ]
 
   const culturalThemes = [
@@ -90,10 +117,74 @@ export default function DashboardPage() {
     weeklyProgress: 8
   }
 
-  const handleStartShuffle = (mode: string) => {
+  const handleStartShuffle = async (mode: string) => {
     setSelectedMode(mode)
-    // This would deep link to the user's streaming apps
-    console.log(`Launching ${mode} shuffle - will deep link to streaming platforms`)
+    setIsShuffling(true)
+    setError(null)
+
+    try {
+      const connectedPlatformIds = connectedPlatforms
+        .filter(p => p.connected)
+        .map(p => p.id)
+
+      const response = await fetch('/api/shuffle/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mode,
+          platforms: connectedPlatformIds,
+          contentType: 'all',
+          userId: 'demo-user'
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setCurrentRecommendation(result.data)
+      } else {
+        setError(result.error || 'Failed to generate shuffle')
+      }
+    } catch (err) {
+      setError('Network error occurred')
+      console.error('Shuffle error:', err)
+    } finally {
+      setIsShuffling(false)
+    }
+  }
+
+  const handleWatchNow = async (content: ContentItem) => {
+    try {
+      // Generate deep link
+      const response = await fetch('/api/deeplink/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contentId: content.id.toString(),
+          platform: content.platform,
+          contentType: content.type
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Try app URL first, fallback to web URL
+        const link = result.data.appUrl || result.data.webUrl
+        window.open(link, '_blank')
+      } else {
+        // Fallback to platform homepage
+        window.open(content.deepLink, '_blank')
+      }
+    } catch (err) {
+      console.error('Deep link error:', err)
+      // Fallback to platform homepage
+      window.open(content.deepLink, '_blank')
+    }
   }
 
   const toggleCulturalTheme = (themeId: string) => {
@@ -206,69 +297,144 @@ export default function DashboardPage() {
         </div>
         <div className="w-full bg-gray-700 rounded-full h-2">
           <div 
-            className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+            className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
             style={{ width: `${(challengeStats.weeklyProgress / challengeStats.weeklyGoal) * 100}%` }}
           />
         </div>
       </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Content Display */}
-            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
-              <ContentDisplay />
-            </section>
-
-            {/* Shuffle Controls */}
-            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
-              <ShuffleControls />
-            </section>
-
-            {/* Platform Status */}
-            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
-              <PlatformStatus />
-            </section>
+      {/* Current Recommendation */}
+      {currentRecommendation && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-6 mb-6 bg-gray-800 rounded-xl overflow-hidden"
+        >
+          <div className="relative h-48 bg-gradient-to-r from-purple-600 to-pink-600">
+            {currentRecommendation.recommendation.poster && (
+              <img
+                src={`https://image.tmdb.org/t/p/w500${currentRecommendation.recommendation.poster}`}
+                alt={currentRecommendation.recommendation.title}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent" />
+            <div className="absolute bottom-4 left-4 right-4">
+              <h3 className="text-xl font-bold mb-1">{currentRecommendation.recommendation.title}</h3>
+              <p className="text-sm text-gray-300 mb-3">{currentRecommendation.recommendation.description}</p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleWatchNow(currentRecommendation.recommendation)}
+                  className="bg-white text-black px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-gray-200 transition-colors"
+                >
+                  <Play className="w-4 h-4" />
+                  Watch Now
+                </button>
+                <button
+                  onClick={() => handleStartShuffle(currentRecommendation.mode)}
+                  className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                >
+                  <Shuffle className="w-4 h-4" />
+                  Shuffle Again
+                </button>
+              </div>
+            </div>
           </div>
+        </motion.div>
+      )}
 
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Binger's Challenge */}
-            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
-              <BingerChallenge />
-            </section>
+      {/* Error Display */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-6 mb-6 bg-red-600/20 border border-red-500/30 rounded-xl p-4"
+        >
+          <p className="text-red-400">{error}</p>
+        </motion.div>
+      )}
 
-            {/* Cultural Themes */}
-            <section className="bg-card rounded-lg shadow-lg overflow-hidden">
-              <CulturalThemes />
-            </section>
-          </div>
+      {/* Shuffle Modes */}
+      <div className="mx-6 mb-6">
+        <h2 className="text-xl font-bold mb-4">Choose Your Shuffle</h2>
+        <div className="grid grid-cols-1 gap-3">
+          {shuffleModes.map((mode) => (
+            <motion.button
+              key={mode.id}
+              onClick={() => handleStartShuffle(mode.id)}
+              disabled={isShuffling}
+              className={`flex items-center gap-4 p-4 rounded-xl transition-all ${
+                selectedMode === mode.id
+                  ? 'bg-purple-600/30 border border-purple-500/50'
+                  : 'bg-gray-800 hover:bg-gray-700 border border-gray-700'
+              } ${isShuffling ? 'opacity-50 cursor-not-allowed' : ''}`}
+              whileHover={{ scale: isShuffling ? 1 : 1.02 }}
+              whileTap={{ scale: isShuffling ? 1 : 0.98 }}
+            >
+              <div className={`p-3 rounded-lg ${
+                selectedMode === mode.id ? 'bg-purple-600' : 'bg-gray-700'
+              }`}>
+                {isShuffling && selectedMode === mode.id ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <mode.icon className="w-6 h-6" />
+                )}
+              </div>
+              <div className="flex-1 text-left">
+                <h3 className="font-semibold">{mode.name}</h3>
+                <p className="text-sm text-gray-400">{mode.description}</p>
+              </div>
+              <ExternalLink className="w-5 h-5 text-gray-400" />
+            </motion.button>
+          ))}
         </div>
-      </main>
+      </div>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700">
-        <div className="flex justify-around items-center py-3">
-          <button className="flex flex-col items-center gap-1 text-white">
+      {/* Platform Status */}
+      <div className="mx-6 mb-6">
+        <h3 className="text-lg font-semibold mb-3">Connected Platforms</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {connectedPlatforms.map((platform) => (
+            <div
+              key={platform.name}
+              className={`flex items-center gap-3 p-3 rounded-lg ${
+                platform.connected ? 'bg-green-600/20 border border-green-500/30' : 'bg-gray-700'
+              }`}
+            >
+              <div className={`w-3 h-3 rounded-full ${platform.color}`} />
+              <span className="text-sm font-medium">{platform.name}</span>
+              <span className="text-xs text-gray-400 ml-auto">
+                {platform.connected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700">
+        <div className="flex justify-around py-3">
+          <Link href="/dashboard" className="flex flex-col items-center gap-1 text-purple-400">
             <Home className="w-5 h-5" />
             <span className="text-xs">Home</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 text-gray-400">
+          </Link>
+          <Link href="/browse" className="flex flex-col items-center gap-1 text-gray-400 hover:text-white">
             <Search className="w-5 h-5" />
             <span className="text-xs">Browse</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 text-gray-400">
+          </Link>
+          <Link href="/cable" className="flex flex-col items-center gap-1 text-gray-400 hover:text-white">
             <Tv className="w-5 h-5" />
             <span className="text-xs">Cable Mode</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 text-gray-400">
+          </Link>
+          <Link href="/my-list" className="flex flex-col items-center gap-1 text-gray-400 hover:text-white">
             <Heart className="w-5 h-5" />
             <span className="text-xs">My List</span>
-          </button>
+          </Link>
         </div>
-      </nav>
+      </div>
     </div>
   )
 } 
