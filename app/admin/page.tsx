@@ -129,9 +129,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-}
-
-export const metadata = {
-  title: 'Admin Dashboard - ShuffleStream',
-  description: 'Administrative dashboard for managing ShuffleStream platform',
 } 
