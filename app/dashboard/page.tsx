@@ -22,7 +22,8 @@ import {
   EyeOff,
   Calendar,
   Flag,
-  Users
+  Users,
+  Shield
 } from 'lucide-react'
 import { ShuffleControls } from '@/components/ShuffleControls'
 import { ContentDisplay } from '@/components/ContentDisplay'
@@ -102,6 +103,9 @@ export default function DashboardPage() {
   // In a real app, this would come from auth
   const userId = 'demo-user'
 
+  // In a real app, this would come from auth/user role
+  const isAdmin = true // Demo: set to true to show admin access
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
@@ -111,6 +115,15 @@ export default function DashboardPage() {
           <p className="text-xs text-gray-400">Smart Streaming Assistant</p>
         </div>
         <div className="flex items-center gap-3">
+          {isAdmin && (
+            <Link 
+              href="/admin"
+              className="p-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors group"
+              title="Admin Dashboard"
+            >
+              <Shield className="w-4 h-4 text-red-400 group-hover:text-red-300" />
+            </Link>
+          )}
           <button 
             onClick={() => setShowCulturalSettings(!showCulturalSettings)}
             className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
