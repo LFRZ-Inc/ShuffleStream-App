@@ -30,13 +30,18 @@ import {
   Star,
   Clock,
   TrendingUp,
-  Award
+  Award,
+  Info,
+  CheckCircle,
+  XCircle
 } from 'lucide-react'
 import { ShuffleControls } from '@/components/ShuffleControls'
 import { ContentDisplay } from '@/components/ContentDisplay'
 import { PlatformStatus } from '@/components/PlatformStatus'
 import { BingerChallenge } from '@/components/BingerChallenge'
 import { CulturalThemes } from '@/components/CulturalThemes'
+import { PlatformSelectionModal } from '@/app/components/PlatformSelectionModal'
+import { Tooltip } from '@/app/components/Tooltip'
 
 interface ContentItem {
   id: number
@@ -80,6 +85,28 @@ interface User {
     }
   }
   isAdmin?: boolean
+}
+
+interface Platform {
+  id: string
+  name: string
+  connected: boolean
+  color: string
+}
+
+interface ShuffleMode {
+  id: string
+  name: string
+  description: string
+  icon: any
+  isPro?: boolean
+}
+
+interface CulturalTheme {
+  id: string
+  name: string
+  icon: string
+  enabled: boolean
 }
 
 const PLATFORM_COLORS = {
@@ -189,9 +216,56 @@ const ContentCard = ({ content, onClick, showPlatform = true }: {
   )
 }
 
+// Pro Modal Component
+const ProModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+  if (!isOpen) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-center">
+          <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold mb-2">Unlock Pro Features</h3>
+          <p className="text-gray-400 mb-6">
+            Upgrade to Pro to access advanced shuffle modes, unlimited platform connections, and premium content.
+          </p>
+          <div className="space-y-3">
+            <Link
+              href="/pro"
+              className="block w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 py-3 rounded-lg font-semibold transition-all"
+            >
+              Upgrade to Pro
+            </Link>
+            <button
+              onClick={onClose}
+              className="w-full bg-gray-700 hover:bg-gray-600 py-3 rounded-lg font-semibold transition-colors"
+            >
+              Maybe Later
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 export default function DashboardPage() {
   const [selectedMode, setSelectedMode] = useState<string | null>(null)
   const [showCulturalSettings, setShowCulturalSettings] = useState(false)
+  const [showProModal, setShowProModal] = useState(false)
+  const [showPlatformModal, setShowPlatformModal] = useState(false)
   const [currentRecommendation, setCurrentRecommendation] = useState<ContentItem | null>(null)
   const [alternatives, setAlternatives] = useState<ContentItem[]>([])
   const [isShuffling, setIsShuffling] = useState(false)
@@ -199,95 +273,145 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [recentContent, setRecentContent] = useState<ContentItem[]>([])
   const [trendingContent, setTrendingContent] = useState<ContentItem[]>([])
+  const [connectedPlatforms, setConnectedPlatforms] = useState<Platform[]>([
+    { id: 'netflix', name: 'Netflix', connected: true, color: 'bg-red-500' },
+    { id: 'disney', name: 'Disney+', connected: true, color: 'bg-blue-500' },
+    { id: 'hulu', name: 'Hulu', connected: false, color: 'bg-green-500' },
+    { id: 'prime', name: 'Prime Video', connected: true, color: 'bg-blue-400' },
+    { id: 'hbo', name: 'HBO Max', connected: false, color: 'bg-purple-500' },
+    { id: 'apple', name: 'Apple TV+', connected: false, color: 'bg-gray-500' },
+    { id: 'paramount', name: 'Paramount+', connected: false, color: 'bg-blue-600' },
+    { id: 'peacock', name: 'Peacock', connected: false, color: 'bg-purple-400' }
+  ])
 
-  const shuffleModes = [
+  const [culturalThemes, setCulturalThemes] = useState<CulturalTheme[]>([
+    { id: 'pride', name: 'Pride Content', icon: '🏳️‍🌈', enabled: true },
+    { id: 'religious', name: 'Religious Content', icon: '🙏', enabled: false },
+    { id: 'political', name: 'Political Content', icon: '🗳️', enabled: false },
+    { id: 'socialJustice', name: 'Social Justice', icon: '✊', enabled: true }
+  ])
+
+  const shuffleModes: ShuffleMode[] = [
     {
       id: 'full',
       name: 'Full Shuffle',
-      description: 'Anything, across all selected platforms',
-      icon: Shuffle,
+      description: 'Shuffle from all available content across your connected platforms',
+      icon: Shuffle
     },
     {
       id: 'preference',
       name: 'Preference Shuffle',
-      description: 'Based on your genres & viewing history',
-      icon: Target,
+      description: 'Shuffle based on your viewing preferences and history',
+      icon: Target
     },
     {
       id: 'platform',
       name: 'Platform Shuffle',
-      description: 'Random content from specific platforms',
-      icon: Tv,
+      description: 'Choose a specific platform to shuffle from',
+      icon: Zap
     },
     {
       id: 'list',
       name: 'List Shuffle',
-      description: 'Shuffle your curated packs',
+      description: 'Shuffle from your custom lists and shuffle packs',
       icon: List,
+      isPro: true
     },
     {
       id: 'show',
       name: 'Show Shuffle',
-      description: 'Random episode from a show',
-      icon: Volume2,
+      description: 'Pick a random episode from your favorite shows',
+      icon: Tv,
+      isPro: true
     }
-  ]
-
-  const connectedPlatforms = [
-    { name: 'Netflix', connected: true, color: 'bg-red-600', id: 'netflix' },
-    { name: 'Disney+', connected: true, color: 'bg-blue-600', id: 'disney' },
-    { name: 'Prime Video', connected: true, color: 'bg-blue-500', id: 'prime' },
-    { name: 'Hulu', connected: false, color: 'bg-green-500', id: 'hulu' }
-  ]
-
-  const culturalThemes = [
-    { id: 'pride', name: 'Pride Content', enabled: true, icon: '🏳️‍🌈' },
-    { id: 'religious', name: 'Religious Holidays', enabled: false, icon: '🕊️' },
-    { id: 'political', name: 'Political Content', enabled: false, icon: '🗳️' },
-    { id: 'social', name: 'Social Justice', enabled: true, icon: '✊' }
   ]
 
   const challengeStats = {
     currentStreak: 7,
-    totalWatched: 127,
-    rank: 42,
-    weeklyGoal: 15,
-    weeklyProgress: 8
+    totalWatched: 142,
+    weeklyProgress: 5,
+    weeklyGoal: 7,
+    rank: 23
   }
 
-  useEffect(() => {
-    // Load user data
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      setUser(JSON.parse(userData))
-    }
+  const isAdmin = user?.isAdmin || false
 
-    // Load initial content
+  useEffect(() => {
+    // Load initial data
     loadTrendingContent()
+    loadUser()
   }, [])
+
+  const loadUser = async () => {
+    // Mock user data
+    setUser({
+      id: 'demo-user',
+      email: 'demo@shufflestream.com',
+      name: 'Demo User',
+      preferences: {
+        platforms: ['netflix', 'disney', 'prime'],
+        genres: ['Action', 'Comedy', 'Drama'],
+        culturalContent: {
+          pride: true,
+          religious: false,
+          political: false,
+          socialJustice: true
+        }
+      }
+    })
+  }
 
   const loadTrendingContent = async () => {
     try {
-      const response = await fetch('/api/content/discover?type=all&sort_by=popularity.desc')
+      const response = await fetch('/api/content/discover?trending=true&limit=12')
       const data = await response.json()
       
       if (data.success) {
-        const allContent = [...(data.data.movies || []), ...(data.data.tvShows || [])]
-        setTrendingContent(allContent.slice(0, 8))
-        setRecentContent(allContent.slice(8, 16))
+        setTrendingContent(data.data.content)
+        setRecentContent(data.data.content.slice(0, 6))
       }
-    } catch (error) {
-      console.error('Failed to load content:', error)
+    } catch (err) {
+      console.error('Failed to load trending content:', err)
     }
   }
 
   const handleStartShuffle = async (mode: string) => {
-    setSelectedMode(mode)
+    const shuffleMode = shuffleModes.find(m => m.id === mode)
+    
+    // Check if Pro feature
+    if (shuffleMode?.isPro) {
+      setShowProModal(true)
+      return
+    }
+
+    // Handle platform shuffle mode
+    if (mode === 'platform') {
+      setShowPlatformModal(true)
+      return
+    }
+
+    await performShuffle(mode)
+  }
+
+  const handlePlatformShuffle = async (platformId: string) => {
+    setShowPlatformModal(false)
+    
+    if (platformId === 'all') {
+      await performShuffle('platform')
+    } else {
+      await performShuffle('platform', [platformId])
+    }
+  }
+
+  const performShuffle = async (mode: string, specificPlatforms?: string[]) => {
     setIsShuffling(true)
+    setSelectedMode(mode)
     setError(null)
+    setCurrentRecommendation(null)
+    setAlternatives([])
 
     try {
-      const connectedPlatformIds = connectedPlatforms
+      const connectedPlatformIds = specificPlatforms || connectedPlatforms
         .filter(p => p.connected)
         .map(p => p.id)
 
@@ -299,56 +423,67 @@ export default function DashboardPage() {
         body: JSON.stringify({
           mode,
           platforms: connectedPlatformIds,
-          contentType: 'all',
-          userId: 'demo-user'
+          userId: user?.id || 'demo-user'
         }),
       })
 
-      const result = await response.json()
+      const data = await response.json()
 
-      if (result.success) {
-        setCurrentRecommendation(result.data.recommendation)
-        setAlternatives(result.data.alternatives)
+      if (data.success) {
+        setCurrentRecommendation(data.data.recommendation)
+        setAlternatives(data.data.alternatives)
       } else {
-        setError(result.error || 'Failed to generate shuffle')
+        setError(data.error || 'No titles matched your filters. Try changing platforms or genres.')
       }
     } catch (err) {
-      setError('Network error occurred')
+      setError('Network error occurred. Please try again.')
       console.error('Shuffle error:', err)
     } finally {
       setIsShuffling(false)
+      setSelectedMode(null)
     }
   }
 
   const handleWatchNow = (content: ContentItem) => {
-    // Try to open the app URL first, then fallback to web
-    const link = document.createElement('a')
-    link.href = content.watchUrl
-    link.click()
+    // Log to watched titles (mock)
+    console.log('Logging watch:', content.title)
     
-    // Fallback to web URL after a short delay
-    setTimeout(() => {
+    // Open deep link
+    if (content.deepLink) {
       window.open(content.deepLink, '_blank')
-    }, 1000)
+    } else {
+      window.open(content.watchUrl, '_blank')
+    }
   }
 
   const handleAddToList = (content: ContentItem) => {
-    // Add to user's list (mock implementation)
+    // Mock add to list functionality
     console.log('Adding to list:', content.title)
+    // In real app, this would call an API to add to user's list
   }
 
   const toggleCulturalTheme = (themeId: string) => {
-    console.log(`Toggling cultural theme: ${themeId}`)
+    setCulturalThemes(prev => 
+      prev.map(theme => 
+        theme.id === themeId 
+          ? { ...theme, enabled: !theme.enabled }
+          : theme
+      )
+    )
   }
 
-  // In a real app, this would come from auth
-  const userId = 'demo-user'
-
-  // In a real app, this would come from auth/user role
-  const isAdmin = true // Demo: set to true to show admin access
+  const togglePlatformConnection = (platformId: string) => {
+    setConnectedPlatforms(prev =>
+      prev.map(platform =>
+        platform.id === platformId
+          ? { ...platform, connected: !platform.connected }
+          : platform
+      )
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-900 text-white pb-20">
       {/* Header */}
       <header className="flex justify-between items-center p-6 pb-4">
         <div>
@@ -371,7 +506,10 @@ export default function DashboardPage() {
           >
             <Settings className="w-4 h-4" />
           </button>
-          <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+          <button 
+            onClick={() => setShowProModal(true)}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+          >
             <Crown className="w-4 h-4 inline mr-2" />
             Unlock Pro
           </button>
@@ -459,7 +597,7 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="mb-12"
+          className="mx-6 mb-6"
         >
           <h2 className="text-2xl font-bold mb-6 flex items-center">
             <Sparkles className="w-6 h-6 mr-2 text-purple-400" />
@@ -555,33 +693,43 @@ export default function DashboardPage() {
         <h2 className="text-xl font-bold mb-4">Choose Your Shuffle</h2>
         <div className="grid grid-cols-1 gap-3">
           {shuffleModes.map((mode) => (
-            <motion.button
+            <Tooltip
               key={mode.id}
-              onClick={() => handleStartShuffle(mode.id)}
-              disabled={isShuffling}
-              className={`flex items-center gap-4 p-4 rounded-xl transition-all ${
-                selectedMode === mode.id
-                  ? 'bg-purple-600/30 border border-purple-500/50'
-                  : 'bg-gray-800 hover:bg-gray-700 border border-gray-700'
-              } ${isShuffling ? 'opacity-50 cursor-not-allowed' : ''}`}
-              whileHover={{ scale: isShuffling ? 1 : 1.02 }}
-              whileTap={{ scale: isShuffling ? 1 : 0.98 }}
+              content={mode.description}
+              position="right"
             >
-              <div className={`p-3 rounded-lg ${
-                selectedMode === mode.id ? 'bg-purple-600' : 'bg-gray-700'
-              }`}>
-                {isShuffling && selectedMode === mode.id ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : (
-                  <mode.icon className="w-6 h-6" />
-                )}
-              </div>
-              <div className="flex-1 text-left">
-                <h3 className="font-semibold">{mode.name}</h3>
-                <p className="text-sm text-gray-400">{mode.description}</p>
-              </div>
-              <ExternalLink className="w-5 h-5 text-gray-400" />
-            </motion.button>
+              <motion.button
+                onClick={() => handleStartShuffle(mode.id)}
+                disabled={isShuffling}
+                className={`flex items-center gap-4 p-4 rounded-xl transition-all relative ${
+                  selectedMode === mode.id
+                    ? 'bg-purple-600/30 border border-purple-500/50'
+                    : 'bg-gray-800 hover:bg-gray-700 border border-gray-700'
+                } ${isShuffling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                whileHover={{ scale: isShuffling ? 1 : 1.02 }}
+                whileTap={{ scale: isShuffling ? 1 : 0.98 }}
+              >
+                <div className={`p-3 rounded-lg ${
+                  selectedMode === mode.id ? 'bg-purple-600' : 'bg-gray-700'
+                }`}>
+                  {isShuffling && selectedMode === mode.id ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <mode.icon className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">{mode.name}</h3>
+                    {mode.isPro && (
+                      <Crown className="w-4 h-4 text-yellow-400" />
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-400">{mode.description}</p>
+                </div>
+                <ExternalLink className="w-5 h-5 text-gray-400" />
+              </motion.button>
+            </Tooltip>
           ))}
         </div>
       </div>
@@ -591,25 +739,28 @@ export default function DashboardPage() {
         <h3 className="text-lg font-semibold mb-3">Connected Platforms</h3>
         <div className="grid grid-cols-2 gap-3">
           {connectedPlatforms.map((platform) => (
-            <div
-              key={platform.name}
-              className={`flex items-center gap-3 p-3 rounded-lg ${
-                platform.connected ? 'bg-green-600/20 border border-green-500/30' : 'bg-gray-700'
+            <button
+              key={platform.id}
+              onClick={() => togglePlatformConnection(platform.id)}
+              className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+                platform.connected ? 'bg-green-600/20 border border-green-500/30' : 'bg-gray-700 hover:bg-gray-600'
               }`}
             >
               <div className={`w-3 h-3 rounded-full ${platform.color}`} />
-              <span className="text-sm font-medium">{platform.name}</span>
-              <span className="text-xs text-gray-400 ml-auto">
-                {platform.connected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
+              <span className="text-sm font-medium flex-1 text-left">{platform.name}</span>
+              {platform.connected ? (
+                <CheckCircle className="w-4 h-4 text-green-400" />
+              ) : (
+                <XCircle className="w-4 h-4 text-gray-500" />
+              )}
+            </button>
           ))}
         </div>
       </div>
 
       {/* Alternative Recommendations */}
       {alternatives.length > 0 && (
-        <section className="mb-12">
+        <section className="mx-6 mb-6">
           <h2 className="text-2xl font-bold mb-6">More Great Options</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {alternatives.map((content) => (
@@ -625,7 +776,7 @@ export default function DashboardPage() {
 
       {/* Trending Content */}
       {trendingContent.length > 0 && (
-        <section className="mb-12">
+        <section className="mx-6 mb-6">
           <h2 className="text-2xl font-bold mb-6 flex items-center">
             <TrendingUp className="w-6 h-6 mr-2 text-purple-400" />
             Trending Now
@@ -644,7 +795,7 @@ export default function DashboardPage() {
 
       {/* Recently Added */}
       {recentContent.length > 0 && (
-        <section className="mb-12">
+        <section className="mx-6 mb-6">
           <h2 className="text-2xl font-bold mb-6 flex items-center">
             <Clock className="w-6 h-6 mr-2 text-purple-400" />
             Recently Added
@@ -662,36 +813,33 @@ export default function DashboardPage() {
       )}
 
       {/* Quick Actions */}
-      <section className="grid md:grid-cols-3 gap-6">
-        <motion.a
-          href="/shuffle"
-          whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-purple-600 to-purple-700 p-6 rounded-xl text-center hover:from-purple-700 hover:to-purple-800 transition-all"
+      <section className="mx-6 mb-6 grid md:grid-cols-3 gap-6">
+        <Link
+          href="/advanced-shuffle"
+          className="block bg-gradient-to-br from-purple-600 to-purple-700 p-6 rounded-xl text-center hover:from-purple-700 hover:to-purple-800 transition-all"
         >
           <Shuffle className="w-12 h-12 mx-auto mb-4 text-purple-200" />
           <h3 className="text-xl font-semibold mb-2">Advanced Shuffle</h3>
           <p className="text-purple-200">Customize your shuffle with advanced filters</p>
-        </motion.a>
+        </Link>
 
-        <motion.a
+        <Link
           href="/browse"
-          whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-pink-600 to-pink-700 p-6 rounded-xl text-center hover:from-pink-700 hover:to-pink-800 transition-all"
+          className="block bg-gradient-to-br from-pink-600 to-pink-700 p-6 rounded-xl text-center hover:from-pink-700 hover:to-pink-800 transition-all"
         >
           <Users className="w-12 h-12 mx-auto mb-4 text-pink-200" />
           <h3 className="text-xl font-semibold mb-2">Browse Library</h3>
           <p className="text-pink-200">Explore our complete content library</p>
-        </motion.a>
+        </Link>
 
-        <motion.a
+        <Link
           href="/my-list"
-          whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-xl text-center hover:from-blue-700 hover:to-blue-800 transition-all"
+          className="block bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-xl text-center hover:from-blue-700 hover:to-blue-800 transition-all"
         >
           <Award className="w-12 h-12 mx-auto mb-4 text-blue-200" />
           <h3 className="text-xl font-semibold mb-2">My Lists</h3>
           <p className="text-blue-200">Manage your saved content and shuffle packs</p>
-        </motion.a>
+        </Link>
       </section>
 
       {/* Navigation */}
@@ -715,6 +863,18 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Pro Modal */}
+      <ProModal isOpen={showProModal} onClose={() => setShowProModal(false)} />
+
+      {/* Platform Selection Modal */}
+      <PlatformSelectionModal
+        isOpen={showPlatformModal}
+        onClose={() => setShowPlatformModal(false)}
+        platforms={connectedPlatforms}
+        onShuffleFromPlatform={handlePlatformShuffle}
+        isShuffling={isShuffling}
+      />
     </div>
   )
 } 
