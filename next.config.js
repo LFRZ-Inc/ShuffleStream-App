@@ -14,7 +14,6 @@ const nextConfig = {
   assetPrefix: process.env.NODE_ENV === 'production' ? '/ShuffleStream/' : '',
   trailingSlash: true,
   reactStrictMode: true,
-  distDir: 'out',
 }
 
 module.exports = nextConfig 

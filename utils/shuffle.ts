@@ -196,21 +196,21 @@ export function getShuffleRecommendation(
 function filterByPreferences(content: Content[], preferences: ShufflePreferences): Content[] {
   return content.filter(item => {
     // Check content type
-    if (!preferences.contentTypes.includes(item.type)) return false
+    if (item.type && !preferences.contentTypes.includes(item.type)) return false
     
     // Check platform
-    if (preferences.excludedPlatforms.includes(item.platformId)) return false
+    if (item.platformId && preferences.excludedPlatforms.includes(item.platformId)) return false
     
     // Check genre overlap
-    if (preferences.genres.length > 0 && 
+    if (preferences.genres.length > 0 && item.genres && 
         !item.genres.some(g => preferences.genres.includes(g.id))) return false
     
     // Check rating (assuming rating is 1-10)
-    const numericRating = parseFloat(item.rating)
+    const numericRating = typeof item.rating === 'string' ? parseFloat(item.rating) : item.rating
     if (!isNaN(numericRating) && numericRating < preferences.minRating) return false
     
     // Check duration
-    if (preferences.maxDuration > 0 && item.duration > preferences.maxDuration) return false
+    if (preferences.maxDuration > 0 && item.duration && item.duration > preferences.maxDuration) return false
     
     return true
   })
@@ -244,24 +244,23 @@ export function preferenceShuffle(
 export function cableModeShuffle(
   content: Content[],
   preferences: ShufflePreferences,
-  currentGenre?: string
+  currentGenre?: string | undefined
 ): Content[] {
   let filtered = filterByPreferences(content, preferences)
   
-  // If we have a current genre, prioritize similar content first
+  // If we have a current genre, prioritize similar content
   if (currentGenre) {
     const similar = filtered.filter(item => 
-      item.genres.some(g => g.id === currentGenre)
+      item.genres?.some(g => g.id === currentGenre)
     )
-    const others = filtered.filter(item => 
-      !item.genres.some(g => g.id === currentGenre)
-    )
-    filtered = [...shuffleArray(similar), ...shuffleArray(others)]
-  } else {
-    filtered = shuffleArray(filtered)
+    if (similar.length > 0) {
+      filtered = [...similar, ...filtered.filter(item => 
+        !item.genres?.some(g => g.id === currentGenre)
+      )]
+    }
   }
   
-  return filtered
+  return shuffleArray(filtered).slice(0, 10)
 }
 
 // List Shuffle - From user's curated list
@@ -293,7 +292,7 @@ export function shuffle(
     preferences?: ShufflePreferences,
     listIds?: string[],
     seriesId?: string,
-    currentGenre?: string,
+    currentGenre?: string | undefined,
     count?: number
   } = {}
 ): Content[] {
@@ -304,22 +303,26 @@ export function shuffle(
       return fullShuffle(content, count)
       
     case 'preference':
-      if (!preferences) throw new Error('Preferences required for preference shuffle')
-      return preferenceShuffle(content, preferences, count)
+      return preferences 
+        ? preferenceShuffle(content, preferences, count)
+        : fullShuffle(content, count)
       
     case 'cable':
-      if (!preferences) throw new Error('Preferences required for cable mode')
-      return cableModeShuffle(content, preferences, currentGenre)
+      return preferences
+        ? cableModeShuffle(content, preferences, currentGenre)
+        : fullShuffle(content, count)
       
     case 'list':
-      if (!listIds) throw new Error('List IDs required for list shuffle')
-      return listShuffle(content, listIds, count)
+      return listIds
+        ? listShuffle(content, listIds, count)
+        : fullShuffle(content, count)
       
     case 'show':
-      if (!seriesId) throw new Error('Series ID required for show shuffle')
-      return showShuffle(content, seriesId, count)
+      return seriesId
+        ? showShuffle(content, seriesId, count)
+        : fullShuffle(content, count)
       
     default:
-      throw new Error(`Invalid shuffle mode: ${mode}`)
+      return fullShuffle(content, count)
   }
 } 

@@ -1,5 +1,14 @@
-import { SVGProps } from 'react'
 import { ImageResponse } from 'next/og'
+import { SVGProps } from 'react'
+
+export const runtime = 'edge'
+
+export const size = {
+  width: 32,
+  height: 32,
+}
+
+export const contentType = 'image/png'
 
 export function ShuffleStreamIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -36,7 +45,13 @@ export function ShuffleStreamIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
-export function generateIcon(size: number): ImageResponse {
+export const iconConfig = {
+  icon: [
+    { url: '/icon', sizes: '32x32', type: 'image/png' },
+  ],
+}
+
+export default function Icon() {
   return new ImageResponse(
     (
       <div
@@ -56,20 +71,7 @@ export function generateIcon(size: number): ImageResponse {
       </div>
     ),
     {
-      width: size,
-      height: size,
+      ...size,
     }
   )
-}
-
-export const iconConfig = {
-  icon: [
-    { url: '/icon?size=64', sizes: '64x64', type: 'image/png' },
-    { url: '/icon?size=32', sizes: '32x32', type: 'image/png' },
-    { url: '/icon?size=16', sizes: '16x16', type: 'image/png' },
-  ],
-  apple: [
-    { url: '/icon?size=180', sizes: '180x180', type: 'image/png' },
-  ],
-  shortcut: ['/icon?size=192'],
 } 

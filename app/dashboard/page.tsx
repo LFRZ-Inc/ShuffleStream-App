@@ -224,12 +224,12 @@ export default function DashboardPage() {
           <div className="space-y-8">
             {/* Binger's Challenge */}
             <section className="bg-card rounded-lg shadow-lg overflow-hidden">
-              <BingerChallenge userId={userId} />
+              <BingerChallenge />
             </section>
 
             {/* Cultural Themes */}
             <section className="bg-card rounded-lg shadow-lg overflow-hidden">
-              <CulturalThemes userId={userId} />
+              <CulturalThemes />
             </section>
           </div>
         </div>

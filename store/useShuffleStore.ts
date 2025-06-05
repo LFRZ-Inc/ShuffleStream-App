@@ -131,7 +131,7 @@ export const useShuffleStore = create<ShuffleStore>()(
           const state = get()
           const shuffled = shuffle(mode, content, {
             preferences: state.preferences,
-            currentGenre: state.currentContent?.genres[0]?.id
+            currentGenre: state.currentContent?.genres?.[0]?.id
           })
           
           set({
@@ -185,13 +185,15 @@ export const useShuffleStore = create<ShuffleStore>()(
           const platform = get().platforms.find(p => p.id === content.platformId)
           if (!platform) throw new Error('Platform not found')
           
-          // Open deep link
-          window.location.href = content.deepLinkUrl
+          // Open deep link if available
+          if (content.deepLinkUrl) {
+            window.location.href = content.deepLinkUrl
+          }
           
-          // Fallback to web URL if deep link fails
+          // Fallback to web URL
           setTimeout(() => {
             window.location.href = `https://www.${platform.id}.com`
-          }, 2500)
+          }, content.deepLinkUrl ? 2500 : 0)
         }
       }),
       {

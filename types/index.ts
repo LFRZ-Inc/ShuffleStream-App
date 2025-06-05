@@ -45,7 +45,7 @@ export interface CulturalTheme {
   description: string
   icon: string
   color: string
-  preferenceKey: keyof Omit<UserPreferences, 'user_id' | 'created_at' | 'updated_at'>
+  preferenceKey: string
 }
 
 export interface BingerChallenge {
@@ -104,84 +104,96 @@ export type ShuffleModeType = 'full' | 'preference' | 'cable' | 'list' | 'show'
 export type ContentType = 'movie' | 'series' | 'episode'
 export type PlatformType = 'netflix' | 'disney+' | 'hulu' | 'prime' | 'hbo' | 'apple' | 'paramount' | 'peacock'
 
-export type Platform = {
-  id: PlatformType;
-  name: string;
-  color: string;
-  deepLinkPrefix: string;
-  isConnected: boolean;
+export interface Platform {
+  id: PlatformType | string
+  name: string
+  color: string
+  deepLinkPrefix?: string
+  isConnected?: boolean
+  connected?: boolean
 }
 
-export type Content = {
-  id: string;
-  title: string;
-  type: ContentType;
-  platformId: PlatformType;
-  genres: Genre[];
-  releaseYear: number;
-  rating: string;
-  duration: number; // in minutes
-  deepLinkUrl: string;
-  thumbnailUrl: string;
-  description: string;
+export interface Content {
+  id: string
+  title: string
+  type?: ContentType
+  platformId?: PlatformType
+  genres?: Genre[]
+  releaseYear?: number
+  rating: string | number
+  duration?: number
+  deepLinkUrl?: string
+  thumbnailUrl?: string
+  description: string
+  image?: string
+  platform?: string
+  year?: number
   // For series
-  totalSeasons?: number;
-  totalEpisodes?: number;
+  totalSeasons?: number
+  totalEpisodes?: number
   // For episodes
-  seasonNumber?: number;
-  episodeNumber?: number;
-  seriesId?: string;
+  seasonNumber?: number
+  episodeNumber?: number
+  seriesId?: string
 }
 
-export type ShufflePreferences = {
-  genres: string[];
-  minRating: number;
-  maxDuration: number;
-  contentTypes: ContentType[];
-  excludedPlatforms: PlatformType[];
+export interface ShufflePreferences {
+  genres: string[]
+  minRating: number
+  maxDuration: number
+  contentTypes: ContentType[]
+  excludedPlatforms: PlatformType[]
 }
 
-export type ShuffleState = {
-  mode: ShuffleModeType | null;
-  isPlaying: boolean;
-  currentContent: Content | null;
-  queue: Content[];
-  history: Content[];
+export interface ShuffleState {
+  mode: ShuffleModeType | null
+  isPlaying: boolean
+  currentContent: Content | null
+  queue: Content[]
+  history: Content[]
 }
 
-export type UserList = Omit<DbShufflePack, 'created_at' | 'updated_at'> & {
-  createdAt: Date;
-  updatedAt: Date;
+export interface UserList extends Omit<DbShufflePack, 'created_at' | 'updated_at'> {
+  createdAt: Date
+  updatedAt: Date
 }
 
-export type ViewingHistory = Omit<DbWatchedTitle, 'watched_at'> & {
-  watchedAt: Date;
-  progress: number; // percentage
+export interface ViewingHistory extends Omit<DbWatchedTitle, 'watched_at'> {
+  watchedAt: Date
+  progress: number
 }
 
-// Cultural themes are managed through user preferences in the database
-export type CulturalPreferences = {
-  userId: string;
+export interface CulturalPreferences {
+  userId: string
   culturalThemes: {
-    pride: boolean;
-    religious: boolean;
-    political: boolean;
-    socialJustice: boolean;
-  };
-  thematicUI: boolean;
-  updatedAt: Date;
+    pride: boolean
+    religious: boolean
+    political: boolean
+    socialJustice: boolean
+  }
+  thematicUI: boolean
+  updatedAt: Date
 }
 
-// Challenge data is derived from leaderboard and watched_titles
-export type Challenge = {
-  id: string;
-  title: string;
-  description: string;
-  target: number;
-  progress: number;
-  startDate: Date;
-  endDate: Date;
-  reward?: string;
+export interface Challenge {
+  id: string
+  name?: string
+  title?: string
+  description: string
+  target?: number
+  progress: number
+  startDate?: Date
+  endDate?: Date
+  reward?: string
+  icon?: any
+}
+
+export interface Theme {
+  id: string
+  name: string
+  description: string
+  enabled: boolean
+  icon: any
 }
 
 export * from './database' 
