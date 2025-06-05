@@ -10,8 +10,9 @@ const nextConfig = {
       },
     ],
   },
-  basePath: process.env.NODE_ENV === 'production' ? '/ShuffleStream' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/ShuffleStream/' : '',
+  // Only use basePath for GitHub Pages deployment
+  basePath: process.env.GITHUB_ACTIONS ? '/ShuffleStream' : '',
+  assetPrefix: process.env.GITHUB_ACTIONS ? '/ShuffleStream/' : '',
   trailingSlash: true,
   reactStrictMode: true,
 }
