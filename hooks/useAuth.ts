@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useContext, createContext, ReactNode } from 'react'
+import React, { useState, useEffect, useContext, createContext, ReactNode } from 'react'
 import { User } from '@/lib/api/types'
 import { apiClient } from '@/lib/api/client'
 
