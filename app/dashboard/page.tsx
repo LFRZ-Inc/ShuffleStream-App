@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Shuffle, 
   Target, 
@@ -25,7 +25,12 @@ import {
   Users,
   Shield,
   Play,
-  Loader2
+  Loader2,
+  Plus,
+  Star,
+  Clock,
+  TrendingUp,
+  Award
 } from 'lucide-react'
 import { ShuffleControls } from '@/components/ShuffleControls'
 import { ContentDisplay } from '@/components/ContentDisplay'
@@ -46,21 +51,154 @@ interface ContentItem {
   poster: string
   deepLink: string
   watchUrl: string
+  themed_background?: string
 }
 
-interface ShuffleResult {
-  recommendation: ContentItem
-  alternatives: ContentItem[]
-  shuffleId: string
-  mode: string
+interface ShuffleResponse {
+  success: boolean
+  data?: {
+    recommendation: ContentItem
+    alternatives: ContentItem[]
+    shuffleId: string
+    mode: string
+  }
+  error?: string
+}
+
+interface User {
+  id: string
+  email: string
+  name: string
+  preferences: {
+    platforms: string[]
+    genres: string[]
+    culturalContent: {
+      pride: boolean
+      religious: boolean
+      political: boolean
+      socialJustice: boolean
+    }
+  }
+  isAdmin?: boolean
+}
+
+const PLATFORM_COLORS = {
+  netflix: 'bg-red-600',
+  disney: 'bg-blue-600',
+  hulu: 'bg-green-600',
+  prime: 'bg-blue-500',
+  hbo: 'bg-purple-600',
+  apple: 'bg-gray-800',
+  paramount: 'bg-blue-700',
+  peacock: 'bg-purple-500'
+}
+
+const PLATFORM_NAMES = {
+  netflix: 'Netflix',
+  disney: 'Disney+',
+  hulu: 'Hulu',
+  prime: 'Prime Video',
+  hbo: 'HBO Max',
+  apple: 'Apple TV+',
+  paramount: 'Paramount+',
+  peacock: 'Peacock'
+}
+
+// Content Card Component with themed backgrounds
+const ContentCard = ({ content, onClick, showPlatform = true }: { 
+  content: ContentItem, 
+  onClick?: () => void,
+  showPlatform?: boolean 
+}) => {
+  const [imageError, setImageError] = useState(false)
+  
+  const handleImageError = () => {
+    setImageError(true)
+  }
+
+  const shouldShowThemedBackground = !content.poster || imageError || content.poster === ""
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className="relative bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"
+      onClick={onClick}
+    >
+      {/* Content Image or Themed Background */}
+      <div className="aspect-[2/3] relative">
+        {shouldShowThemedBackground ? (
+          // Themed Background with Title
+          <div 
+            className="w-full h-full flex items-center justify-center p-4"
+            style={{ background: content.themed_background || 'linear-gradient(135deg, #667eea, #764ba2)' }}
+          >
+            <div className="text-center">
+              <h3 className="text-white font-bold text-lg mb-2 leading-tight">
+                {content.title}
+              </h3>
+              <div className="flex items-center justify-center space-x-2 text-white/80 text-sm">
+                <span>{content.year}</span>
+                <span>•</span>
+                <span className="flex items-center">
+                  <Star className="w-3 h-3 mr-1" />
+                  {content.rating}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Poster Image
+          <img
+            src={`https://image.tmdb.org/t/p/w500${content.poster}`}
+            alt={content.title}
+            className="w-full h-full object-cover"
+            onError={handleImageError}
+          />
+        )}
+        
+        {/* Overlay on hover */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <Play className="w-12 h-12 text-white" />
+        </div>
+        
+        {/* Platform badge */}
+        {showPlatform && (
+          <div className={`absolute top-2 right-2 ${PLATFORM_COLORS[content.platform as keyof typeof PLATFORM_COLORS]} text-white text-xs px-2 py-1 rounded`}>
+            {PLATFORM_NAMES[content.platform as keyof typeof PLATFORM_NAMES]}
+          </div>
+        )}
+      </div>
+      
+      {/* Content Info (only show if we have poster image) */}
+      {!shouldShowThemedBackground && (
+        <div className="p-3">
+          <h3 className="text-white font-semibold text-sm mb-1 line-clamp-2">
+            {content.title}
+          </h3>
+          <div className="flex items-center justify-between text-gray-400 text-xs">
+            <span>{content.year}</span>
+            <div className="flex items-center">
+              <Star className="w-3 h-3 mr-1" />
+              {content.rating}
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  )
 }
 
 export default function DashboardPage() {
   const [selectedMode, setSelectedMode] = useState<string | null>(null)
   const [showCulturalSettings, setShowCulturalSettings] = useState(false)
-  const [currentRecommendation, setCurrentRecommendation] = useState<ShuffleResult | null>(null)
+  const [currentRecommendation, setCurrentRecommendation] = useState<ContentItem | null>(null)
+  const [alternatives, setAlternatives] = useState<ContentItem[]>([])
   const [isShuffling, setIsShuffling] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [recentContent, setRecentContent] = useState<ContentItem[]>([])
+  const [trendingContent, setTrendingContent] = useState<ContentItem[]>([])
 
   const shuffleModes = [
     {
@@ -117,6 +255,32 @@ export default function DashboardPage() {
     weeklyProgress: 8
   }
 
+  useEffect(() => {
+    // Load user data
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      setUser(JSON.parse(userData))
+    }
+
+    // Load initial content
+    loadTrendingContent()
+  }, [])
+
+  const loadTrendingContent = async () => {
+    try {
+      const response = await fetch('/api/content/discover?type=all&sort_by=popularity.desc')
+      const data = await response.json()
+      
+      if (data.success) {
+        const allContent = [...(data.data.movies || []), ...(data.data.tvShows || [])]
+        setTrendingContent(allContent.slice(0, 8))
+        setRecentContent(allContent.slice(8, 16))
+      }
+    } catch (error) {
+      console.error('Failed to load content:', error)
+    }
+  }
+
   const handleStartShuffle = async (mode: string) => {
     setSelectedMode(mode)
     setIsShuffling(true)
@@ -143,7 +307,8 @@ export default function DashboardPage() {
       const result = await response.json()
 
       if (result.success) {
-        setCurrentRecommendation(result.data)
+        setCurrentRecommendation(result.data.recommendation)
+        setAlternatives(result.data.alternatives)
       } else {
         setError(result.error || 'Failed to generate shuffle')
       }
@@ -155,36 +320,21 @@ export default function DashboardPage() {
     }
   }
 
-  const handleWatchNow = async (content: ContentItem) => {
-    try {
-      // Generate deep link
-      const response = await fetch('/api/deeplink/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contentId: content.id.toString(),
-          platform: content.platform,
-          contentType: content.type
-        }),
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        // Try app URL first, fallback to web URL
-        const link = result.data.appUrl || result.data.webUrl
-        window.open(link, '_blank')
-      } else {
-        // Fallback to platform homepage
-        window.open(content.deepLink, '_blank')
-      }
-    } catch (err) {
-      console.error('Deep link error:', err)
-      // Fallback to platform homepage
+  const handleWatchNow = (content: ContentItem) => {
+    // Try to open the app URL first, then fallback to web
+    const link = document.createElement('a')
+    link.href = content.watchUrl
+    link.click()
+    
+    // Fallback to web URL after a short delay
+    setTimeout(() => {
       window.open(content.deepLink, '_blank')
-    }
+    }, 1000)
+  }
+
+  const handleAddToList = (content: ContentItem) => {
+    // Add to user's list (mock implementation)
+    console.log('Adding to list:', content.title)
   }
 
   const toggleCulturalTheme = (themeId: string) => {
@@ -305,45 +455,88 @@ export default function DashboardPage() {
 
       {/* Current Recommendation */}
       {currentRecommendation && (
-        <motion.div
+        <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-6 mb-6 bg-gray-800 rounded-xl overflow-hidden"
+          exit={{ opacity: 0, y: -20 }}
+          className="mb-12"
         >
-          <div className="relative h-48 bg-gradient-to-r from-purple-600 to-pink-600">
-            {currentRecommendation.recommendation.poster && (
-              <img
-                src={`https://image.tmdb.org/t/p/w500${currentRecommendation.recommendation.poster}`}
-                alt={currentRecommendation.recommendation.title}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4">
-              <h3 className="text-xl font-bold mb-1">{currentRecommendation.recommendation.title}</h3>
-              <p className="text-sm text-gray-300 mb-3">{currentRecommendation.recommendation.description}</p>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => handleWatchNow(currentRecommendation.recommendation)}
-                  className="bg-white text-black px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-gray-200 transition-colors"
-                >
-                  <Play className="w-4 h-4" />
-                  Watch Now
-                </button>
-                <button
-                  onClick={() => handleStartShuffle(currentRecommendation.mode)}
-                  className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
-                >
-                  <Shuffle className="w-4 h-4" />
-                  Shuffle Again
-                </button>
+          <h2 className="text-2xl font-bold mb-6 flex items-center">
+            <Sparkles className="w-6 h-6 mr-2 text-purple-400" />
+            Your Shuffle Pick
+          </h2>
+          
+          <div className="bg-gray-800 rounded-xl p-6">
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <ContentCard 
+                  content={currentRecommendation} 
+                  showPlatform={true}
+                />
+              </div>
+              
+              <div className="md:col-span-2 space-y-4">
+                <div>
+                  <h3 className="text-2xl font-bold mb-2">{currentRecommendation.title}</h3>
+                  <div className="flex items-center space-x-4 text-gray-400 mb-4">
+                    <span className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      {currentRecommendation.year}
+                    </span>
+                    <span className="flex items-center">
+                      <Clock className="w-4 h-4 mr-1" />
+                      {currentRecommendation.duration}
+                    </span>
+                    <span className="flex items-center">
+                      <Star className="w-4 h-4 mr-1" />
+                      {currentRecommendation.rating}/10
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {currentRecommendation.genre.map((genre) => (
+                      <span key={genre} className="bg-purple-600/20 text-purple-300 px-3 py-1 rounded-full text-sm">
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-gray-300 mb-6">{currentRecommendation.description}</p>
+                </div>
+                
+                <div className="flex space-x-4">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleWatchNow(currentRecommendation)}
+                    className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 transition-colors"
+                  >
+                    <Play className="w-5 h-5" />
+                    <span>Watch Now</span>
+                  </motion.button>
+                  
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleAddToList(currentRecommendation)}
+                    className="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span>Add to List</span>
+                  </motion.button>
+                  
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => window.open(currentRecommendation.deepLink, '_blank')}
+                    className="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 transition-colors"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    <span>Open in App</span>
+                  </motion.button>
+                </div>
               </div>
             </div>
           </div>
-        </motion.div>
+        </motion.section>
       )}
 
       {/* Error Display */}
@@ -413,6 +606,93 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* Alternative Recommendations */}
+      {alternatives.length > 0 && (
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-6">More Great Options</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {alternatives.map((content) => (
+              <ContentCard
+                key={content.id}
+                content={content}
+                onClick={() => setCurrentRecommendation(content)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Trending Content */}
+      {trendingContent.length > 0 && (
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 flex items-center">
+            <TrendingUp className="w-6 h-6 mr-2 text-purple-400" />
+            Trending Now
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {trendingContent.map((content) => (
+              <ContentCard
+                key={content.id}
+                content={content}
+                onClick={() => setCurrentRecommendation(content)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Recently Added */}
+      {recentContent.length > 0 && (
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 flex items-center">
+            <Clock className="w-6 h-6 mr-2 text-purple-400" />
+            Recently Added
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {recentContent.map((content) => (
+              <ContentCard
+                key={content.id}
+                content={content}
+                onClick={() => setCurrentRecommendation(content)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Quick Actions */}
+      <section className="grid md:grid-cols-3 gap-6">
+        <motion.a
+          href="/shuffle"
+          whileHover={{ scale: 1.02 }}
+          className="bg-gradient-to-br from-purple-600 to-purple-700 p-6 rounded-xl text-center hover:from-purple-700 hover:to-purple-800 transition-all"
+        >
+          <Shuffle className="w-12 h-12 mx-auto mb-4 text-purple-200" />
+          <h3 className="text-xl font-semibold mb-2">Advanced Shuffle</h3>
+          <p className="text-purple-200">Customize your shuffle with advanced filters</p>
+        </motion.a>
+
+        <motion.a
+          href="/browse"
+          whileHover={{ scale: 1.02 }}
+          className="bg-gradient-to-br from-pink-600 to-pink-700 p-6 rounded-xl text-center hover:from-pink-700 hover:to-pink-800 transition-all"
+        >
+          <Users className="w-12 h-12 mx-auto mb-4 text-pink-200" />
+          <h3 className="text-xl font-semibold mb-2">Browse Library</h3>
+          <p className="text-pink-200">Explore our complete content library</p>
+        </motion.a>
+
+        <motion.a
+          href="/my-list"
+          whileHover={{ scale: 1.02 }}
+          className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-xl text-center hover:from-blue-700 hover:to-blue-800 transition-all"
+        >
+          <Award className="w-12 h-12 mx-auto mb-4 text-blue-200" />
+          <h3 className="text-xl font-semibold mb-2">My Lists</h3>
+          <p className="text-blue-200">Manage your saved content and shuffle packs</p>
+        </motion.a>
+      </section>
 
       {/* Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700">
