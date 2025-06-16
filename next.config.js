@@ -1,25 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable export for production builds (GitHub Pages)
-  output: process.env.NODE_ENV === 'production' ? 'export' : undefined,
-  // Temporarily disable TypeScript checking during build
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  images: {
-    unoptimized: true,
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'image.tmdb.org',
-      },
-    ],
-  },
-  // Only use basePath for GitHub Pages deployment
-  basePath: process.env.GITHUB_ACTIONS ? '/ShuffleStream' : '',
-  assetPrefix: process.env.GITHUB_ACTIONS ? '/ShuffleStream/' : '',
+  // Enable static export for GitHub Pages
+  output: 'export',
   trailingSlash: true,
-  reactStrictMode: true,
+  skipTrailingSlashRedirect: true,
+  distDir: 'dist',
+  
+  // GitHub Pages serves from subdirectory, so we need basePath
+  basePath: process.env.NODE_ENV === 'production' ? '/ShuffleStream-App' : '',
+  assetPrefix: process.env.NODE_ENV === 'production' ? '/ShuffleStream-App/' : '',
+  
+  images: {
+    unoptimized: true // Required for static export
+  },
+  
+  // Disable server-side features not supported in static export
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  }
 }
 
 module.exports = nextConfig 
