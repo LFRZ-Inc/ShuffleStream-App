@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useContext, createContext, ReactNode } from 'react'
+import { useState, useEffect, useContext, createContext, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import { User as SupabaseUser, Session } from '@supabase/supabase-js'
 
@@ -48,6 +48,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      // For demo mode, return mock profile
+      if (typeof window !== 'undefined' && window.location.hostname.includes('github.io')) {
+        const mockProfile: UserProfile = {
+          id: userId,
+          email: 'demo@shufflestream.com',
+          display_name: 'Demo User',
+          is_admin: false,
+          preferences: {
+            show_pride_content: false,
+            show_religious_content: false,
+            show_political_content: false,
+            show_social_justice_content: false,
+            show_thematic_ui: true
+          },
+          platforms: ['netflix', 'disney+', 'hulu']
+        }
+        setProfile(mockProfile)
+        return mockProfile
+      }
+
       // Get user profile
       const { data: userProfile, error: profileError } = await supabase
         .from('users')
@@ -95,6 +115,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    // For demo mode, set mock user
+    if (typeof window !== 'undefined' && window.location.hostname.includes('github.io')) {
+      const mockUser = {
+        id: 'demo-user-id',
+        email: 'demo@shufflestream.com',
+        user_metadata: { display_name: 'Demo User' }
+      } as SupabaseUser
+      
+      setUser(mockUser)
+      fetchUserProfile(mockUser.id)
+      setLoading(false)
+      return
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
