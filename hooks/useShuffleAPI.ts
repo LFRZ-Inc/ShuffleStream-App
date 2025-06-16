@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useAuth } from './useAuth'
+import { isDemoMode, mockShuffleResult } from '@/lib/demo-mode'
 
 interface ShuffleRequest {
   type: 'mood' | 'social' | 'quick' | 'blind' | 'perfect'
@@ -70,6 +71,34 @@ export function useShuffleAPI() {
   const { user } = useAuth()
 
   const shuffleFull = useCallback(async (request: ShuffleRequest): Promise<ShuffleResult | null> => {
+    if (isDemoMode()) {
+      setLoading(true)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setLoading(false)
+      return {
+        title: {
+          id: 'demo-1',
+          title: 'Stranger Things',
+          description: 'When a young boy vanishes, a small town uncovers a mystery involving secret experiments.',
+          genre: ['Drama', 'Fantasy', 'Horror'],
+          rating: '8.7',
+          duration: 51,
+          release_year: 2016,
+          poster_url: 'https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg',
+          tmdb_id: 66732,
+          type: 'tv_show'
+        },
+        platform: {
+          id: 'netflix',
+          name: 'Netflix',
+          color: '#E50914',
+          icon: 'netflix-icon',
+          deep_link_url: 'https://netflix.com/title/80057281'
+        },
+        cultural_content: []
+      }
+    }
+
     if (!user) {
       setError('User not authenticated')
       return null
