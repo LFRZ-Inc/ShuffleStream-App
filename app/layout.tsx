@@ -4,6 +4,7 @@ import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { iconConfig } from './icon'
 import { AuthProvider } from '@/hooks/useAuth'
+import { DemoBanner } from '@/components/DemoBanner'
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -79,6 +80,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable} dark`}>
       <body className={`${inter.className} antialiased bg-gray-900 text-white`}>
+        <DemoBanner />
         <AuthProvider>
           {children}
           <Toaster
