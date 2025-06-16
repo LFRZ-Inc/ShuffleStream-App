@@ -8,7 +8,6 @@ import {
   ShuffleState,
   PlatformType
 } from '@/types'
-import { shuffle } from '@/utils/shuffle'
 
 interface ShuffleStore extends ShuffleState {
   // Platform management
@@ -21,7 +20,7 @@ interface ShuffleStore extends ShuffleState {
   setPreferences: (preferences: ShufflePreferences) => void;
   
   // Shuffle controls
-  startShuffle: (mode: ShuffleModeType, content: Content[]) => void;
+  startShuffle: (mode: ShuffleModeType, content?: Content[]) => Promise<void>;
   stopShuffle: () => void;
   nextContent: () => void;
   previousContent: () => void;
@@ -33,6 +32,11 @@ interface ShuffleStore extends ShuffleState {
   
   // Deep linking
   launchContent: (content: Content) => Promise<void>;
+  
+  // Loading states
+  loading: boolean;
+  error: string | null;
+  setError: (error: string | null) => void;
 }
 
 const defaultPreferences: ShufflePreferences = {
@@ -114,6 +118,8 @@ export const useShuffleStore = create<ShuffleStore>()(
         history: [],
         platforms: defaultPlatforms,
         preferences: defaultPreferences,
+        loading: false,
+        error: null,
         
         // Platform management
         setPlatforms: (platforms) => set({ platforms }),
@@ -127,20 +133,39 @@ export const useShuffleStore = create<ShuffleStore>()(
         setPreferences: (preferences) => set({ preferences }),
         
         // Shuffle controls
-        startShuffle: (mode, content) => {
+        startShuffle: async (mode, content) => {
           const state = get()
-          const shuffled = shuffle(mode, content, {
-            preferences: state.preferences,
-            currentGenre: state.currentContent?.genres?.[0]?.id
-          })
           
-          set({
-            mode,
-            isPlaying: true,
-            queue: shuffled,
-            currentContent: shuffled[0] || null,
-            history: state.currentContent ? [...state.history, state.currentContent] : []
-          })
+          // If content is provided, use it directly (for manual shuffles)
+          if (content && content.length > 0) {
+            const shuffled = [...content].sort(() => Math.random() - 0.5)
+            set({
+              mode,
+              isPlaying: true,
+              queue: shuffled,
+              currentContent: shuffled[0] || null,
+              history: state.currentContent ? [...state.history, state.currentContent] : []
+            })
+            return
+          }
+          
+          // Otherwise, use the API for smart shuffling
+          set({ loading: true, error: null })
+          
+          try {
+            // This will be called from components that have access to the shuffle API hook
+            // For now, just set the mode
+            set({
+              mode,
+              isPlaying: true,
+              loading: false
+            })
+          } catch (error) {
+            set({ 
+              loading: false, 
+              error: error instanceof Error ? error.message : 'Failed to start shuffle' 
+            })
+          }
         },
         
         stopShuffle: () => set({ isPlaying: false }),
@@ -179,6 +204,9 @@ export const useShuffleStore = create<ShuffleStore>()(
         })),
         
         clearQueue: () => set({ queue: [] }),
+        
+        // Error handling
+        setError: (error) => set({ error }),
         
         // Deep linking
         launchContent: async (content) => {

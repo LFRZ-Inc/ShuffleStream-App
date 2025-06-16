@@ -3,6 +3,7 @@ import { Inter, Poppins } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { iconConfig } from './icon'
+import { AuthProvider } from '@/hooks/useAuth'
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -78,33 +79,35 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable} dark`}>
       <body className={`${inter.className} antialiased bg-gray-900 text-white`}>
-        {children}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#1F2937',
-              color: '#fff',
-              borderRadius: '10px',
-              padding: '16px',
-              fontSize: '14px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-            },
-            success: {
-              iconTheme: {
-                primary: '#10B981',
-                secondary: '#fff',
+        <AuthProvider>
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#1F2937',
+                color: '#fff',
+                borderRadius: '10px',
+                padding: '16px',
+                fontSize: '14px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
               },
-            },
-            error: {
-              iconTheme: {
-                primary: '#EF4444',
-                secondary: '#fff',
+              success: {
+                iconTheme: {
+                  primary: '#10B981',
+                  secondary: '#fff',
+                },
               },
-            },
-          }}
-        />
+              error: {
+                iconTheme: {
+                  primary: '#EF4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+        </AuthProvider>
       </body>
     </html>
   )

@@ -1,66 +1,141 @@
 'use client'
 
 import React, { useState, useEffect, useContext, createContext, ReactNode } from 'react'
-import { User } from '@/lib/api/types'
-import { apiClient } from '@/lib/api/client'
+import { supabase } from '@/lib/supabase'
+import { User as SupabaseUser, Session } from '@supabase/supabase-js'
+
+interface UserProfile {
+  id: string
+  email: string
+  display_name: string
+  avatar_url?: string
+  is_admin: boolean
+  preferences?: {
+    show_pride_content: boolean
+    show_religious_content: boolean
+    show_political_content: boolean
+    show_social_justice_content: boolean
+    show_thematic_ui: boolean
+  }
+  platforms?: string[]
+}
 
 interface AuthContextType {
-  user: User | null
+  user: SupabaseUser | null
+  profile: UserProfile | null
+  session: Session | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (userData: {
-    username: string
     email: string
     password: string
     displayName: string
   }) => Promise<void>
   logout: () => Promise<void>
-  updateUser: (userData: Partial<User>) => Promise<void>
-  refreshUser: () => Promise<void>
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>
+  updatePreferences: (preferences: any) => Promise<void>
+  refreshProfile: () => Promise<void>
   isAuthenticated: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Check for existing token and validate user
-    const initAuth = async () => {
-      const token = localStorage.getItem('auth_token')
-      if (token) {
-        apiClient.setToken(token)
-        try {
-          const response = await apiClient.getCurrentUser()
-          if (response.success && response.data) {
-            setUser(response.data)
-          } else {
-            // Invalid token, clear it
-            apiClient.clearToken()
-          }
-        } catch (error) {
-          console.error('Auth initialization error:', error)
-          apiClient.clearToken()
-        }
-      }
-      setLoading(false)
-    }
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      // Get user profile
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single()
 
-    initAuth()
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError)
+        return null
+      }
+
+      // Get user preferences
+      const { data: preferences } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
+
+      // Get user platforms
+      const { data: platforms } = await supabase
+        .from('user_platforms')
+        .select('platform_id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+
+      const fullProfile: UserProfile = {
+        ...userProfile,
+        preferences: preferences || {
+          show_pride_content: false,
+          show_religious_content: false,
+          show_political_content: false,
+          show_social_justice_content: false,
+          show_thematic_ui: true
+        },
+        platforms: platforms?.map((p: any) => p.platform_id) || []
+      }
+
+      setProfile(fullProfile)
+      return fullProfile
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error)
+      return null
+    }
+  }
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      
+      if (session?.user) {
+        fetchUserProfile(session.user.id)
+      }
+      
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      
+      if (session?.user) {
+        await fetchUserProfile(session.user.id)
+      } else {
+        setProfile(null)
+      }
+      
+      setLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const login = async (email: string, password: string) => {
     setLoading(true)
     try {
-      const response = await apiClient.login(email, password)
-      if (response.success && response.data) {
-        const { user, token } = response.data
-        apiClient.setToken(token)
-        setUser(user)
-      } else {
-        throw new Error(response.error || 'Login failed')
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      
+      if (error) {
+        throw new Error(error.message)
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -71,20 +146,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const register = async (userData: {
-    username: string
     email: string
     password: string
     displayName: string
   }) => {
     setLoading(true)
     try {
-      const response = await apiClient.register(userData)
-      if (response.success && response.data) {
-        const { user, token } = response.data
-        apiClient.setToken(token)
-        setUser(user)
-      } else {
-        throw new Error(response.error || 'Registration failed')
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            display_name: userData.displayName
+          }
+        }
+      })
+      
+      if (error) {
+        throw new Error(error.message)
       }
     } catch (error) {
       console.error('Registration error:', error)
@@ -97,54 +176,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setLoading(true)
     try {
-      await apiClient.logout()
+      await supabase.auth.signOut()
+      setProfile(null)
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
-      apiClient.clearToken()
-      setUser(null)
       setLoading(false)
     }
   }
 
-  const updateUser = async (userData: Partial<User>) => {
-    try {
-      const response = await apiClient.updateUser(userData)
-      if (response.success && response.data) {
-        setUser(response.data)
-      } else {
-        throw new Error(response.error || 'Update failed')
-      }
-    } catch (error) {
-      console.error('Update user error:', error)
-      throw error
+  const updateProfile = async (updates: Partial<UserProfile>) => {
+    if (!user) return
+
+    const { error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', user.id)
+
+    if (!error && profile) {
+      setProfile({ ...profile, ...updates })
     }
   }
 
-  const refreshUser = async () => {
-    try {
-      const response = await apiClient.getCurrentUser()
-      if (response.success && response.data) {
-        setUser(response.data)
-      }
-    } catch (error) {
-      console.error('Refresh user error:', error)
-      // If refresh fails, user might be logged out
-      if (error instanceof Error && error.message.includes('401')) {
-        apiClient.clearToken()
-        setUser(null)
-      }
+  const updatePreferences = async (preferences: any) => {
+    if (!user) return
+
+    const { error } = await supabase
+      .from('user_preferences')
+      .upsert({
+        user_id: user.id,
+        ...preferences
+      })
+
+    if (!error && profile) {
+      setProfile({ ...profile, preferences: { ...profile.preferences, ...preferences } })
+    }
+  }
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchUserProfile(user.id)
     }
   }
 
   const value: AuthContextType = {
     user,
+    profile,
+    session,
     loading,
     login,
     register,
     logout,
-    updateUser,
-    refreshUser,
+    updateProfile,
+    updatePreferences,
+    refreshProfile,
     isAuthenticated: !!user,
   }
 
@@ -178,11 +263,11 @@ export function useRequireAdmin() {
   const auth = useAuth()
   
   useEffect(() => {
-    if (!auth.loading && (!auth.isAuthenticated || auth.user?.subscription !== 'premium')) {
+    if (!auth.loading && (!auth.isAuthenticated || !auth.profile?.is_admin)) {
       // Redirect to dashboard or unauthorized page
       window.location.href = '/dashboard'
     }
-  }, [auth.loading, auth.isAuthenticated, auth.user])
+  }, [auth.loading, auth.isAuthenticated, auth.profile])
 
   return auth
 } 

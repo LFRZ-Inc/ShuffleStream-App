@@ -18,6 +18,9 @@ import {
   Heart,
   Share2
 } from 'lucide-react'
+import { useShuffleAPI } from '@/hooks/useShuffleAPI'
+import { useAuth } from '@/hooks/useAuth'
+import { toast } from 'react-hot-toast'
 
 interface ShuffleMode {
   id: string
@@ -43,42 +46,42 @@ interface Content {
 
 const shuffleModes: ShuffleMode[] = [
   {
-    id: 'full',
-    name: 'Full Shuffle',
-    description: 'Anything, across all selected platforms',
-    icon: Shuffle,
+    id: 'mood',
+    name: 'Mood Shuffle',
+    description: 'Based on your current mood',
+    icon: Target,
     color: 'from-purple-500 to-pink-500',
     available: true
   },
   {
-    id: 'preference',
-    name: 'Preference Shuffle',
-    description: 'Based on your genres & viewing history',
-    icon: Target,
+    id: 'social',
+    name: 'Social Shuffle',
+    description: 'Popular and trending content',
+    icon: Heart,
     color: 'from-green-500 to-emerald-500',
     available: true
   },
   {
-    id: 'cable',
-    name: 'Cable Mode',
-    description: 'Autoplay, endless channel-style experience',
-    icon: Tv,
+    id: 'quick',
+    name: 'Quick Shuffle',
+    description: 'Fast recommendations',
+    icon: Shuffle,
     color: 'from-orange-500 to-red-500',
     available: true
   },
   {
-    id: 'list',
-    name: 'List Shuffle',
-    description: 'Shuffle your curated packs',
-    icon: List,
+    id: 'blind',
+    name: 'Blind Shuffle',
+    description: 'Mystery content - no spoilers!',
+    icon: Volume2,
     color: 'from-blue-500 to-cyan-500',
     available: true
   },
   {
-    id: 'show',
-    name: 'Show Shuffle',
-    description: 'Random episode from a show',
-    icon: Volume2,
+    id: 'perfect',
+    name: 'Perfect Match',
+    description: 'AI-powered personalized picks',
+    icon: Star,
     color: 'from-indigo-500 to-purple-500',
     available: true
   }
@@ -99,9 +102,11 @@ const mockContent: Content = {
 }
 
 export default function ShufflePage() {
-  const [selectedMode, setSelectedMode] = useState<string>('full')
+  const { isAuthenticated, profile } = useAuth()
+  const { shuffleFull, loading, error } = useShuffleAPI()
+  
+  const [selectedMode, setSelectedMode] = useState<string>('mood')
   const [currentContent, setCurrentContent] = useState<Content | null>(null)
-  const [isShuffling, setIsShuffling] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [shuffleHistory, setShuffleHistory] = useState<Content[]>([])
 
@@ -115,19 +120,50 @@ export default function ShufflePage() {
   })
 
   const handleShuffle = async () => {
-    setIsShuffling(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // In a real app, this would call the shuffle API with the selected mode and filters
-    setCurrentContent(mockContent)
-    
-    if (currentContent) {
-      setShuffleHistory(prev => [currentContent, ...prev.slice(0, 9)])
+    if (!isAuthenticated) {
+      toast.error('Please log in to use shuffle features')
+      return
     }
-    
-    setIsShuffling(false)
+
+    try {
+      const request = {
+        type: selectedMode as 'mood' | 'social' | 'quick' | 'blind' | 'perfect',
+        platforms: filters.platforms.length > 0 ? filters.platforms : undefined,
+        genres: filters.genres.length > 0 ? filters.genres : undefined,
+        duration: filters.maxDuration > 0 ? filters.maxDuration.toString() : undefined,
+        rating: filters.minRating > 0 ? filters.minRating.toString() : undefined,
+        exclude_watched: true
+      }
+
+      const result = await shuffleFull(request)
+      
+      if (result) {
+        const content: Content = {
+          id: result.title.id,
+          title: result.title.title,
+          platform: result.platform.name,
+          genre: result.title.genre,
+          rating: parseFloat(result.title.rating) || 0,
+          year: result.title.release_year,
+          duration: result.title.duration,
+          image: result.title.poster_url,
+          deepLink: result.platform.deep_link_url || `https://${result.platform.id}.com`,
+          description: result.title.description
+        }
+        
+        setCurrentContent(content)
+        
+        if (currentContent) {
+          setShuffleHistory(prev => [currentContent, ...prev.slice(0, 9)])
+        }
+        
+        toast.success(`Found "${result.title.title}" on ${result.platform.name}!`)
+      } else {
+        toast.error('No content found matching your criteria')
+      }
+    } catch (err) {
+      toast.error('Failed to shuffle content')
+    }
   }
 
   const handleWatchNow = () => {
@@ -323,7 +359,7 @@ export default function ShufflePage() {
           {/* Shuffle Result */}
           <div className="lg:col-span-2">
             <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700 min-h-[400px] flex items-center justify-center">
-              {isShuffling ? (
+              {loading ? (
                 <motion.div
                   className="text-center"
                   initial={{ opacity: 0 }}
@@ -412,16 +448,16 @@ export default function ShufflePage() {
             <div className="text-center mt-6">
               <motion.button
                 onClick={handleShuffle}
-                disabled={isShuffling}
+                disabled={loading}
                 className={`px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 ${
-                  isShuffling
+                  loading
                     ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white shadow-lg hover:shadow-xl'
                 }`}
-                whileHover={!isShuffling ? { scale: 1.05 } : {}}
-                whileTap={!isShuffling ? { scale: 0.95 } : {}}
+                whileHover={!loading ? { scale: 1.05 } : {}}
+                whileTap={!loading ? { scale: 0.95 } : {}}
               >
-                {isShuffling ? (
+                {loading ? (
                   <>
                     <RefreshCw className="w-5 h-5 inline mr-2 animate-spin" />
                     Shuffling...

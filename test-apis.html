@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShuffleStream API Tester</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0f0f23;
+            color: #cccccc;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .api-section {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        
+        .api-section h3 {
+            color: #8b5cf6;
+            margin-top: 0;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+            font-size: 14px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #2a2a4a;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: #7c3aed;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        .response {
+            background: #1e1e3e;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .success {
+            border-left: 4px solid #10b981;
+        }
+        
+        .error {
+            border-left: 4px solid #ef4444;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .status-200 { background: #10b981; color: white; }
+        .status-400 { background: #f59e0b; color: white; }
+        .status-401 { background: #ef4444; color: white; }
+        .status-404 { background: #6b7280; color: white; }
+        .status-500 { background: #dc2626; color: white; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎬 ShuffleStream API Tester</h1>
+        <p>Test your API endpoints to verify everything is working correctly.</p>
+    </div>
+
+    <div class="api-section">
+        <h3>🎲 Full Shuffle</h3>
+        <div class="form-group">
+            <label for="userId">User ID (required):</label>
+            <input type="text" id="userId" placeholder="Enter a test user ID">
+        </div>
+        <div class="form-group">
+            <label for="platforms">Platforms (comma-separated):</label>
+            <input type="text" id="platforms" placeholder="netflix,hulu,disney+" value="netflix,hulu">
+        </div>
+        <button onclick="testFullShuffle()">Test Full Shuffle</button>
+        <div id="shuffle-response" class="response" style="display: none;"></div>
+    </div>
+
+    <div class="api-section">
+        <h3>🏆 Leaderboard</h3>
+        <div class="form-group">
+            <label for="month">Month:</label>
+            <select id="month">
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12" selected>December</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="year">Year:</label>
+            <input type="number" id="year" value="2024">
+        </div>
+        <button onclick="testLeaderboard()">Test Leaderboard</button>
+        <div id="leaderboard-response" class="response" style="display: none;"></div>
+    </div>
+
+    <div class="api-section">
+        <h3>📊 Monthly Recap</h3>
+        <div class="form-group">
+            <label for="recapUserId">User ID (required):</label>
+            <input type="text" id="recapUserId" placeholder="Enter a test user ID">
+        </div>
+        <div class="form-group">
+            <label for="recapMonth">Month:</label>
+            <select id="recapMonth">
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12" selected>December</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="recapYear">Year:</label>
+            <input type="number" id="recapYear" value="2024">
+        </div>
+        <button onclick="testRecap()">Test Monthly Recap</button>
+        <div id="recap-response" class="response" style="display: none;"></div>
+    </div>
+
+    <div class="api-section">
+        <h3>📝 Record Watch Session</h3>
+        <div class="form-group">
+            <label for="watchUserId">User ID (required):</label>
+            <input type="text" id="watchUserId" placeholder="Enter a test user ID">
+        </div>
+        <div class="form-group">
+            <label for="titleId">Title ID:</label>
+            <input type="text" id="titleId" placeholder="Enter a title ID from your database">
+        </div>
+        <div class="form-group">
+            <label for="rating">Rating (1-5):</label>
+            <input type="number" id="rating" min="1" max="5" value="4">
+        </div>
+        <div class="form-group">
+            <label for="watchDuration">Watch Duration (minutes):</label>
+            <input type="number" id="watchDuration" value="120">
+        </div>
+        <button onclick="recordWatch()">Record Watch Session</button>
+        <div id="watch-response" class="response" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                return { response, data };
+            } catch (error) {
+                return { 
+                    response: { status: 0, statusText: 'Network Error' }, 
+                    data: { error: error.message } 
+                };
+            }
+        }
+
+        function displayResponse(elementId, response, data) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            
+            const statusClass = `status-${response.status}`;
+            const responseClass = response.status >= 200 && response.status < 300 ? 'success' : 'error';
+            
+            element.className = `response ${responseClass}`;
+            element.innerHTML = `<div class="status ${statusClass}">Status: ${response.status} ${response.statusText}</div>${JSON.stringify(data, null, 2)}`;
+        }
+
+        async function testFullShuffle() {
+            const userId = document.getElementById('userId').value;
+            const platforms = document.getElementById('platforms').value;
+            
+            if (!userId) {
+                alert('Please enter a User ID');
+                return;
+            }
+            
+            const params = new URLSearchParams({ userId });
+            if (platforms) {
+                params.append('platforms', platforms);
+                params.append('excludeWatched', 'false');
+            }
+            
+            const { response, data } = await makeRequest(`${API_BASE}/api/shuffle/full?${params}`);
+            displayResponse('shuffle-response', response, data);
+        }
+
+        async function testLeaderboard() {
+            const month = document.getElementById('month').value;
+            const year = document.getElementById('year').value;
+            
+            const params = new URLSearchParams({ month, year, limit: '10' });
+            const { response, data } = await makeRequest(`${API_BASE}/api/leaderboard?${params}`);
+            displayResponse('leaderboard-response', response, data);
+        }
+
+        async function testRecap() {
+            const userId = document.getElementById('recapUserId').value;
+            const month = document.getElementById('recapMonth').value;
+            const year = document.getElementById('recapYear').value;
+            
+            if (!userId) {
+                alert('Please enter a User ID');
+                return;
+            }
+            
+            const params = new URLSearchParams({ userId, month, year });
+            const { response, data } = await makeRequest(`${API_BASE}/api/recap/monthly?${params}`);
+            displayResponse('recap-response', response, data);
+        }
+
+        async function recordWatch() {
+            const userId = document.getElementById('watchUserId').value;
+            const titleId = document.getElementById('titleId').value;
+            const rating = parseInt(document.getElementById('rating').value);
+            const watchDuration = parseInt(document.getElementById('watchDuration').value);
+            
+            if (!userId || !titleId) {
+                alert('Please enter User ID and Title ID');
+                return;
+            }
+            
+            const { response, data } = await makeRequest(`${API_BASE}/api/shuffle/full`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId,
+                    titleId,
+                    rating,
+                    watchDuration
+                })
+            });
+            
+            displayResponse('watch-response', response, data);
+        }
+
+        // Set current date values
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            document.getElementById('month').value = now.getMonth() + 1;
+            document.getElementById('year').value = now.getFullYear();
+            document.getElementById('recapMonth').value = now.getMonth() + 1;
+            document.getElementById('recapYear').value = now.getFullYear();
+        });
+    </script>
+</body>
+</html> 
